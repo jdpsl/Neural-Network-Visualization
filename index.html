@@ -1,857 +1,1355 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Weight × Activation Visualizer</title>
+<title>μGPT — Complete Visualizer</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600&family=Orbitron:wght@400;700&display=swap');
 
 :root {
-  --bg: #08080e;
-  --panel: #0c0c16;
-  --border: #1a1a2e;
-  --text: #b0c4d8;
-  --dim: #3a4a5a;
-  --accent: #00d4ff;
-  --warm: #ff7a40;
-  --green: #40ff90;
-  --purple: #c080ff;
-  --yellow: #ffd060;
+  --bg: #07070d;
+  --panel: #0b0b14;
+  --border: #16162a;
+  --border2: #1e1e3a;
+  --text: #a8bcd0;
+  --dim: #384858;
+  --accent: #00e5ff;
+  --green: #00ff88;
+  --red: #ff4466;
+  --orange: #ff8844;
+  --purple: #bb66ff;
+  --yellow: #ffcc44;
+  --blue: #4488ff;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
+* { margin:0; padding:0; box-sizing:border-box; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Fira Code', monospace;
   height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  font-size: 12px;
 }
 
+/* ── HEADER ── */
 header {
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 20px;
+  padding: 0 16px;
+  height: 42px;
   background: var(--panel);
-  flex-shrink: 0;
-}
-
-.title { font-size: 11px; letter-spacing: 3px; color: var(--accent); font-weight: 600; }
-.desc { font-size: 9px; color: var(--dim); letter-spacing: 1px; }
-
-.tabs {
-  display: flex;
-  gap: 2px;
-  margin-left: auto;
-}
-
-.tab {
-  padding: 5px 14px;
-  font-size: 9px;
-  letter-spacing: 2px;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--dim);
-  font-family: 'IBM Plex Mono', monospace;
-  transition: all 0.15s;
-}
-.tab:hover { color: var(--text); border-color: var(--dim); }
-.tab.active { color: var(--accent); border-color: var(--accent); background: #001a22; }
-
-.workspace {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-
-/* Left: layer selector */
-.layer-list {
-  width: 190px;
-  min-width: 190px;
-  border-right: 1px solid var(--border);
-  background: var(--panel);
-  overflow-y: auto;
-  padding: 10px 0;
-}
-
-.layer-item {
-  padding: 10px 14px;
-  font-size: 9px;
-  letter-spacing: 1px;
-  cursor: pointer;
-  border-left: 2px solid transparent;
-  color: var(--dim);
-  transition: all 0.12s;
-  line-height: 1.6;
-}
-.layer-item:hover { color: var(--text); background: #111120; }
-.layer-item.active { color: var(--accent); border-left-color: var(--accent); background: #001520; }
-.layer-item .ltype { font-size: 7px; color: var(--dim); margin-top: 2px; }
-.layer-item.active .ltype { color: #3a7a9a; }
-
-/* Center: main viz */
-.viz-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.viz-header {
-  padding: 10px 20px;
   border-bottom: 1px solid var(--border);
-  font-size: 9px;
-  color: var(--dim);
-  letter-spacing: 2px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
   flex-shrink: 0;
+  gap: 12px;
 }
-
-.viz-header strong { color: var(--text); }
-
-.legend {
-  display: flex; gap: 12px; margin-left: auto;
+.logo { font-family:'Orbitron',monospace; font-size:13px; font-weight:700; color:var(--accent); letter-spacing:2px; }
+.hsep { color:var(--border2); }
+.nav { display:flex; gap:2px; }
+.nav-btn {
+  padding: 4px 12px;
+  font-family: 'Fira Code', monospace;
+  font-size: 9px; letter-spacing:2px;
+  cursor:pointer; border:1px solid var(--border2);
+  background:transparent; color:var(--dim);
+  transition:all 0.12s; text-transform:uppercase;
 }
-.leg { display: flex; align-items: center; gap: 5px; font-size: 8px; }
-.leg-dot { width: 8px; height: 8px; border-radius: 1px; }
+.nav-btn:hover { color:var(--text); border-color:var(--dim); }
+.nav-btn.active { color:var(--accent); border-color:var(--accent); background:rgba(0,229,255,0.05); }
+.hdr-stats { margin-left:auto; display:flex; align-items:center; gap:10px; font-size:9px; color:var(--dim); }
+.hdr-pill { padding:2px 8px; border:1px solid var(--border2); border-radius:2px; font-size:8px; letter-spacing:1px; }
+.hdr-pill.training { border-color:var(--orange); color:var(--orange); animation:pulse 1s infinite; }
+.hdr-pill.ready { border-color:var(--green); color:var(--green); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-.viz-canvas-wrap {
-  flex: 1;
-  overflow: auto;
-  padding: 24px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+/* ── SECTIONS ── */
+.section { display:none; flex:1; overflow:hidden; }
+.section.active { display:flex; }
+
+/* ── SHARED COMPONENTS ── */
+.card { background:var(--panel); border:1px solid var(--border); padding:12px; }
+.card-title { font-size:8px; letter-spacing:3px; color:var(--dim); text-transform:uppercase; margin-bottom:8px; border-bottom:1px solid var(--border); padding-bottom:5px; }
+.btn { padding:5px 12px; font-family:'Fira Code',monospace; font-size:9px; letter-spacing:1px; cursor:pointer; border:1px solid var(--accent); background:transparent; color:var(--accent); transition:all 0.12s; }
+.btn:hover { background:rgba(0,229,255,0.08); }
+.btn.sec { border-color:var(--border2); color:var(--dim); }
+.btn.sec:hover { color:var(--text); border-color:var(--dim); }
+
+/* ══════════════════════════════════
+   ① VOCAB
+══════════════════════════════════ */
+#sec-vocab { flex-direction:column; padding:16px; gap:12px; overflow-y:auto; }
+.vocab-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.vocab-grid-full { grid-column:1/-1; }
+textarea.tinput {
+  width:100%; height:72px; background:var(--bg); border:1px solid var(--border2);
+  color:var(--text); font-family:'Fira Code',monospace; font-size:11px;
+  padding:7px; resize:none; outline:none; line-height:1.6;
 }
-
-/* Right: info panel */
-.info-panel {
-  width: 220px;
-  min-width: 220px;
-  border-left: 1px solid var(--border);
-  background: var(--panel);
-  padding: 14px;
-  overflow-y: auto;
-  font-size: 9px;
-  line-height: 2;
+input.tinput {
+  width:100%; height:32px; background:var(--bg); border:1px solid var(--border2);
+  color:var(--text); font-family:'Fira Code',monospace; font-size:12px;
+  padding:4px 8px; outline:none;
 }
-
-.info-section { margin-bottom: 16px; }
-.info-title { color: var(--accent); letter-spacing: 2px; font-size: 8px; margin-bottom: 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
-.info-row { display: flex; justify-content: space-between; color: var(--dim); }
-.info-row span { color: var(--text); }
-
-.formula {
-  background: #0a0a1a;
-  border: 1px solid var(--border);
-  padding: 8px;
-  font-size: 9px;
-  color: var(--yellow);
-  line-height: 2;
-  margin-top: 6px;
+.vocab-chips { display:flex; flex-wrap:wrap; gap:3px; margin-top:6px; max-height:100px; overflow-y:auto; }
+.vchip {
+  background:var(--bg); border:1px solid var(--border2); padding:2px 7px;
+  font-size:10px; display:flex; gap:5px; align-items:center;
 }
-
-.selected-info {
-  margin-top: 10px;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
+.vchip .ch { color:var(--accent); font-weight:600; min-width:10px; text-align:center; }
+.vchip .vi { color:var(--dim); font-size:8px; }
+.token-display { display:flex; flex-wrap:wrap; gap:3px; margin-top:6px; min-height:32px; background:var(--bg); border:1px solid var(--border); padding:6px; }
+.tchip {
+  padding:3px 7px; border:1px solid; font-size:11px; font-weight:500;
+  position:relative; cursor:default;
 }
+.tchip .tid { position:absolute; bottom:-13px; left:50%; transform:translateX(-50%); font-size:7px; color:var(--dim); white-space:nowrap; }
+.emb-row { display:flex; gap:2px; align-items:center; margin-bottom:3px; }
+.emb-ch { width:24px; font-size:9px; color:var(--accent); text-align:right; flex-shrink:0; }
+.emb-cell { height:14px; width:14px; display:inline-block; }
 
-.cell-val {
-  font-size: 18px;
-  color: var(--accent);
-  font-weight: 600;
-  margin: 4px 0;
+/* ══════════════════════════════════
+   ② TRAIN  (split: left controls + loss | center animation | right weights inspector)
+══════════════════════════════════ */
+#sec-train { flex-direction:row; }
+
+.train-sidebar {
+  width:200px; min-width:200px;
+  border-right:1px solid var(--border);
+  background:var(--panel);
+  display:flex; flex-direction:column; overflow:hidden;
 }
-
-/* Canvas cells */
-canvas { display: block; }
-
-.instruction {
-  font-size: 9px;
-  color: var(--dim);
-  text-align: center;
-  letter-spacing: 1px;
-  margin-top: 8px;
+.train-controls { padding:12px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.ctrl-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; font-size:9px; }
+.ctrl-lbl { color:var(--dim); letter-spacing:1px; }
+input[type=range] { width:80px; accent-color:var(--accent); }
+input[type=number] { width:56px; background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:'Fira Code',monospace; font-size:9px; padding:2px 5px; outline:none; }
+.btn-row { display:flex; gap:4px; margin-top:8px; }
+.btn-play {
+  flex:1; padding:6px; background:rgba(0,255,136,0.07); border:1px solid var(--green);
+  color:var(--green); font-family:'Fira Code',monospace; font-size:9px; cursor:pointer; transition:all 0.12s;
 }
+.btn-play:hover { background:rgba(0,255,136,0.15); }
+.btn-play.stop { background:rgba(255,68,102,0.07); border-color:var(--red); color:var(--red); }
+.btn-sm { padding:6px 8px; background:transparent; border:1px solid var(--border2); color:var(--dim); font-family:'Fira Code',monospace; font-size:10px; cursor:pointer; transition:all 0.12s; }
+.btn-sm:hover { color:var(--text); border-color:var(--dim); }
+.loss-wrap { flex:1; padding:10px; display:flex; flex-direction:column; gap:6px; overflow:hidden; }
+.loss-stats { display:flex; gap:8px; flex-wrap:wrap; font-size:8px; }
+.ls { color:var(--dim); } .ls span { color:var(--text); }
+#loss-canvas { flex:1; width:100%; border:1px solid var(--border); background:var(--bg); min-height:80px; }
 
+/* Center animation panel */
+.train-center { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.pass-bar {
+  padding:8px 14px; border-bottom:1px solid var(--border); font-size:8px;
+  display:flex; align-items:center; gap:10px; flex-shrink:0;
+}
+.phase-badge { padding:2px 8px; font-size:7px; letter-spacing:2px; border:1px solid var(--border2); color:var(--dim); }
+.phase-badge.forward { border-color:var(--accent); color:var(--accent); }
+.phase-badge.backward { border-color:var(--red); color:var(--red); }
+.phase-badge.update { border-color:var(--green); color:var(--green); }
+.train-anim-wrap { flex:1; overflow:auto; padding:16px; }
+#train-canvas { display:block; }
+.train-log-strip { height:80px; flex-shrink:0; border-top:1px solid var(--border); overflow-y:auto; padding:4px 12px; font-size:8px; color:var(--dim); line-height:1.9; }
+.log-line .pf { color:var(--accent); } .log-line .pb { color:var(--red); } .log-line .pu { color:var(--green); }
+
+/* Right weights inspector */
+.weights-inspector {
+  width:340px; min-width:340px;
+  border-left:1px solid var(--border);
+  background:var(--panel);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.wi-header {
+  padding:8px 12px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:6px; flex-shrink:0;
+}
+.wi-title { font-size:8px; letter-spacing:2px; color:var(--dim); flex:1; }
+/* sub-tabs inside weights inspector */
+.wi-tabs { display:flex; gap:2px; }
+.wi-tab { padding:3px 8px; font-size:7px; letter-spacing:1px; cursor:pointer; border:1px solid var(--border2); background:transparent; color:var(--dim); font-family:'Fira Code',monospace; }
+.wi-tab:hover { color:var(--text); }
+.wi-tab.active { color:var(--yellow); border-color:var(--yellow); background:rgba(255,204,68,0.05); }
+
+.layer-list { overflow-y:auto; flex-shrink:0; max-height:130px; border-bottom:1px solid var(--border); }
+.layer-item { padding:7px 12px; font-size:8px; cursor:pointer; border-left:2px solid transparent; color:var(--dim); transition:all 0.1s; line-height:1.5; }
+.layer-item:hover { color:var(--text); background:#111120; }
+.layer-item.active { color:var(--accent); border-left-color:var(--accent); background:#001520; }
+.layer-item .ltype { font-size:7px; color:var(--dim); }
+
+.wi-canvas-wrap { flex:1; overflow:auto; padding:10px; }
+#wi-canvas { display:block; cursor:crosshair; }
+
+.wi-info { padding:10px 12px; border-top:1px solid var(--border); font-size:8px; line-height:1.9; flex-shrink:0; min-height:100px; }
+.wi-info-title { color:var(--yellow); font-size:8px; letter-spacing:1px; margin-bottom:4px; }
+.wi-formula { background:var(--bg); border:1px solid var(--border2); padding:6px 8px; color:var(--yellow); font-size:8px; margin:4px 0; line-height:1.8; }
+.wi-row { display:flex; justify-content:space-between; color:var(--dim); font-size:8px; }
+.wi-row span { color:var(--text); }
+.wi-val-big { font-size:16px; color:var(--accent); font-weight:600; margin:2px 0; }
+.wi-update { color:var(--green); font-size:8px; }
+
+/* tooltip */
+.tooltip {
+  position:fixed; background:#0d1a2a; border:1px solid #2a4a6a;
+  padding:8px 12px; font-size:9px; line-height:1.8; pointer-events:none;
+  opacity:0; transition:opacity 0.1s; z-index:200; max-width:220px;
+}
+.tooltip.show { opacity:1; }
+.tt-title { color:var(--accent); font-size:10px; margin-bottom:3px; font-weight:600; }
+.tt-row { color:#7a9ab8; } .tt-row span { color:var(--text); }
+
+/* ══════════════════════════════════
+   ③ INFER
+══════════════════════════════════ */
+#sec-infer { flex-direction:row; }
+.infer-left {
+  width:260px; min-width:260px; border-right:1px solid var(--border);
+  background:var(--panel); display:flex; flex-direction:column;
+  padding:12px; gap:10px; overflow-y:auto;
+}
+.infer-input { width:100%; background:var(--bg); border:1px solid var(--border2); color:var(--text); font-family:'Fira Code',monospace; font-size:12px; padding:6px 8px; outline:none; }
+.gen-text { background:var(--bg); border:1px solid var(--border); padding:8px; font-size:13px; line-height:1.8; min-height:70px; word-break:break-all; }
+.gen-text .old { color:var(--dim); }
+.gen-text .new { color:var(--green); animation:fadein 0.25s; }
+.gen-text .cur { color:var(--accent); animation:blink 0.8s infinite; }
+@keyframes fadein { from{opacity:0}to{opacity:1} }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0} }
+.prob-list { display:flex; flex-direction:column; gap:2px; max-height:140px; overflow-y:auto; }
+.prob-row { display:flex; align-items:center; gap:5px; font-size:8px; }
+.prob-ch { width:16px; color:var(--accent); text-align:right; font-weight:600; }
+.prob-track { flex:1; height:11px; background:var(--bg); border:1px solid var(--border); position:relative; }
+.prob-fill { height:100%; background:var(--accent); transition:width 0.25s; opacity:0.5; }
+.prob-pct { width:34px; color:var(--dim); font-size:7px; text-align:right; }
+.prob-row.top .prob-fill { opacity:1; background:var(--green); }
+.prob-row.top .prob-ch { color:var(--green); }
+.infer-main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.infer-canvas-wrap { flex:1; overflow:auto; padding:16px; }
+#infer-canvas { display:block; }
 </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <div class="title">WEIGHT × ACTIVATION</div>
-    <div class="desc">click any cell to trace its contribution</div>
-  </div>
-  <div class="tabs">
-    <div class="tab active" onclick="setView('linear')">LINEAR</div>
-    <div class="tab" onclick="setView('attention')">ATTENTION</div>
-    <div class="tab" onclick="setView('layernorm')">LAYERNORM</div>
+  <div class="logo">μGPT</div>
+  <div class="hsep">│</div>
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showSec('vocab',this)">① VOCAB</button>
+    <button class="nav-btn" onclick="showSec('train',this)">② TRAIN</button>
+    <button class="nav-btn" onclick="showSec('infer',this)">③ INFER</button>
+  </nav>
+  <div class="hdr-stats">
+    <div>STEP <span id="hdr-step">0</span></div>
+    <div>LOSS <span id="hdr-loss">—</span></div>
+    <div class="hdr-pill" id="hdr-pill">IDLE</div>
   </div>
 </header>
 
-<div class="workspace">
-  <div class="layer-list" id="layer-list"></div>
-
-  <div class="viz-area">
-    <div class="viz-header">
-      <span>LAYER: <strong id="layer-name">—</strong></span>
-      <span>OP: <strong id="op-name">—</strong></span>
-      <div class="legend">
-        <div class="leg"><div class="leg-dot" style="background:#00d4ff33;border:1px solid #00d4ff"></div>input</div>
-        <div class="leg"><div class="leg-dot" style="background:#c080ff33;border:1px solid #c080ff"></div>weight</div>
-        <div class="leg"><div class="leg-dot" style="background:#40ff9033;border:1px solid #40ff90"></div>output</div>
-        <div class="leg"><div class="leg-dot" style="background:#ff7a4033;border:1px solid #ff7a40"></div>selected</div>
+<!-- ══ ① VOCAB ══ -->
+<div class="section active" id="sec-vocab">
+  <div class="vocab-grid-2" style="width:100%;padding:16px;gap:12px;overflow-y:auto">
+    <div class="card">
+      <div class="card-title">Training Corpus</div>
+      <textarea class="tinput" id="corpus-input">roses are red
+violets are blue
+roses are red
+roses bloom too</textarea>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="btn" onclick="buildVocab()">▶ BUILD VOCAB</button>
+        <button class="btn sec" onclick="loadPreset()">PRESET</button>
       </div>
     </div>
-
-    <div class="viz-canvas-wrap">
-      <div>
-        <canvas id="main-canvas"></canvas>
-        <div class="instruction" id="instruction">← select a layer · click a cell to trace</div>
-      </div>
+    <div class="card">
+      <div class="card-title">Character Vocabulary <span id="vocab-size-lbl" style="color:var(--accent)"></span></div>
+      <div class="vocab-chips" id="vocab-chips"></div>
     </div>
-  </div>
-
-  <div class="info-panel">
-    <div class="info-section">
-      <div class="info-title">OPERATION</div>
-      <div id="op-desc" style="color:var(--dim);line-height:1.8;font-size:9px;">Select a layer to begin.</div>
-      <div class="formula" id="formula" style="display:none"></div>
+    <div class="card vocab-grid-full">
+      <div class="card-title">Tokenizer — type anything below</div>
+      <input class="tinput" id="tok-input" type="text" placeholder="type to tokenize..." oninput="tokenizeInput()">
+      <div class="token-display" id="tok-display" style="margin-top:16px"></div>
     </div>
-    <div class="info-section" id="selection-section" style="display:none">
-      <div class="info-title">SELECTED CELL</div>
-      <div id="sel-detail"></div>
+    <div class="card">
+      <div class="card-title">Embedding Table (first 8 tokens, d=16)</div>
+      <div id="emb-preview"></div>
     </div>
-    <div class="info-section" id="stats-section" style="display:none">
-      <div class="info-title">MATRIX STATS</div>
-      <div id="mat-stats"></div>
+    <div class="card">
+      <div class="card-title">Positional Encoding (ctx=6, d=16)</div>
+      <div id="pos-preview"></div>
     </div>
   </div>
 </div>
 
+<!-- ══ ② TRAIN ══ -->
+<div class="section" id="sec-train">
+
+  <!-- sidebar: controls + loss -->
+  <div class="train-sidebar">
+    <div class="train-controls">
+      <div class="card-title">Hyperparameters</div>
+      <div class="ctrl-row"><span class="ctrl-lbl">LR</span> <span id="lr-val" style="color:var(--accent);font-size:9px">0.01</span> <input type="range" min="1" max="100" value="10" oninput="setLR(this)"></div>
+      <div class="ctrl-row"><span class="ctrl-lbl">SPEED</span> <span id="spd-val" style="color:var(--accent);font-size:9px">normal</span> <input type="range" min="1" max="3" value="2" oninput="setSpeed(this)"></div>
+      <div class="ctrl-row"><span class="ctrl-lbl">CTX</span> <span style="color:var(--accent);font-size:9px">6</span></div>
+      <div class="ctrl-row"><span class="ctrl-lbl">D_MODEL</span> <span style="color:var(--accent);font-size:9px">16</span></div>
+      <div class="btn-row">
+        <button class="btn-play" id="play-btn" onclick="toggleTrain()">▶ TRAIN</button>
+        <button class="btn-sm" onclick="stepOnce()" title="single step">1</button>
+        <button class="btn-sm" onclick="resetModel()" title="reset">↺</button>
+      </div>
+    </div>
+    <div class="loss-wrap">
+      <div class="card-title">Loss Curve</div>
+      <div class="loss-stats">
+        <div class="ls">step <span id="s-step">0</span></div>
+        <div class="ls">loss <span id="s-loss">—</span></div>
+      </div>
+      <canvas id="loss-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- center: animated forward/backward pass -->
+  <div class="train-center">
+    <div class="pass-bar">
+      <span style="color:var(--dim);font-size:8px;letter-spacing:2px">PASS</span>
+      <span class="phase-badge" id="phase-badge">IDLE</span>
+      <span style="color:var(--dim);font-size:8px" id="pass-desc">press TRAIN or step button</span>
+    </div>
+    <div class="train-anim-wrap">
+      <canvas id="train-canvas"></canvas>
+    </div>
+    <div class="train-log-strip" id="train-log"></div>
+  </div>
+
+  <!-- right: weights inspector -->
+  <div class="weights-inspector">
+    <div class="wi-header">
+      <span class="wi-title">WEIGHTS INSPECTOR</span>
+      <div class="wi-tabs">
+        <button class="wi-tab active" onclick="setWiTab('linear',this)">LINEAR</button>
+        <button class="wi-tab" onclick="setWiTab('attn',this)">ATTN</button>
+        <button class="wi-tab" onclick="setWiTab('ln',this)">LN</button>
+      </div>
+    </div>
+    <div class="layer-list" id="wi-layer-list"></div>
+    <div class="wi-canvas-wrap">
+      <canvas id="wi-canvas"></canvas>
+    </div>
+    <div class="wi-info" id="wi-info">
+      <div style="color:var(--dim);font-size:8px">← select a layer · click any cell</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ③ INFER ══ -->
+<div class="section" id="sec-infer">
+  <div class="infer-left">
+    <div class="card-title">Prompt</div>
+    <input class="infer-input" id="infer-input" type="text" value="roses" placeholder="type prompt...">
+    <div style="display:flex;gap:6px">
+      <button class="btn" onclick="startInfer()">▶ GENERATE</button>
+      <button class="btn sec" onclick="stopInfer()">■ STOP</button>
+    </div>
+    <div class="ctrl-row"><span class="ctrl-lbl" style="font-size:9px">TEMP</span> <span id="temp-val" style="color:var(--accent);font-size:9px">1.0</span> <input type="range" min="1" max="30" value="10" oninput="setTemp(this)"></div>
+    <div class="ctrl-row"><span class="ctrl-lbl" style="font-size:9px">MAX TOKENS</span> <input type="number" id="max-tok" value="24" min="1" max="120"></div>
+    <div class="card-title" style="margin-top:4px">Output</div>
+    <div class="gen-text" id="gen-text"><span class="cur">█</span></div>
+    <div class="card-title" style="margin-top:4px">Next Token Probs</div>
+    <div class="prob-list" id="prob-list"></div>
+  </div>
+  <div class="infer-main">
+    <div class="pass-bar">
+      <span style="color:var(--dim);font-size:8px;letter-spacing:2px">FORWARD PASS</span>
+      <span class="phase-badge forward" id="infer-badge">READY</span>
+      <span style="color:var(--dim);font-size:8px" id="infer-desc">activations per token step</span>
+    </div>
+    <div class="infer-canvas-wrap"><canvas id="infer-canvas"></canvas></div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
 <script>
-// ── Tiny deterministic RNG ───────────────────────────────────────────────────
-function seededRand(seed) {
-  let s = seed;
-  return () => {
-    s = (s * 1664525 + 1013904223) & 0xffffffff;
-    return (s >>> 0) / 0xffffffff * 2 - 1;
+'use strict';
+
+// ═══════════════════════════════════════════════════════
+// MODEL CONSTANTS
+// ═══════════════════════════════════════════════════════
+const D = 16, CTX = 6, HEADS = 2, HEAD_D = D/HEADS, MLP_DIM = D*4;
+
+let vocab=[], charToId={}, idToChar={}, VOCAB_SIZE=0;
+let model=null;
+let LR=0.01, SPEED=400;
+let temperature=1.0;
+let trainingActive=false, trainTimer=null;
+let stepCount=0, lossHistory=[];
+let trainingTokens=[];
+let trainCache=null;
+let inferActive=false, inferTimer=null;
+let inferIds=[], inferPromptLen=0;
+
+// Weights inspector state
+let wiTab='linear';
+let wiLayer=null;
+let wiSel=null; // {kind, row, col}
+let wiLastCache=null;
+
+// ═══════════════════════════════════════════════════════
+// MATH
+// ═══════════════════════════════════════════════════════
+function rng(seed){let s=seed;return()=>{s=(s*1664525+1013904223)>>>0;return(s/0xffffffff)*2-1;}}
+function mat(r,c,seed,sc=0.1){const f=rng(seed);return Array.from({length:r},()=>new Float64Array(c).map(()=>f()*sc));}
+function vec(n,seed,sc=0.1){const f=rng(seed);return new Float64Array(n).map(()=>f()*sc);}
+function mm(x,W){return W.map(row=>row.reduce((s,w,i)=>s+w*x[i],0));}
+function softmax(x){const m=Math.max(...x),e=x.map(v=>Math.exp(v-m)),s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s);}
+function gelu(x){return 0.5*x*(1+Math.tanh(Math.sqrt(2/Math.PI)*(x+0.044715*x**3)));}
+function ln(x,g,b){const mu=x.reduce((s,v)=>s+v,0)/x.length,va=x.reduce((s,v)=>s+(v-mu)**2,0)/x.length,si=Math.sqrt(va+1e-5);return x.map((v,i)=>g[i]*(v-mu)/si+b[i]);}
+function addV(a,b){return a.map((v,i)=>v+b[i]);}
+function minmax(arr){let mn=Infinity,mx=-Infinity;for(const v of arr){if(v<mn)mn=v;if(v>mx)mx=v;}return{mn,mx};}
+function matMinmax(M){let mn=Infinity,mx=-Infinity;for(const r of M)for(const v of r){if(v<mn)mn=v;if(v>mx)mx=v;}return{mn,mx};}
+
+// ═══════════════════════════════════════════════════════
+// MODEL INIT
+// ═══════════════════════════════════════════════════════
+function initModel(){
+  const V=VOCAB_SIZE||30;
+  model={
+    wte:mat(V,D,1,0.4), wpe:mat(CTX,D,2,0.1),
+    ln1g:new Float64Array(D).fill(1), ln1b:new Float64Array(D).fill(0),
+    wq:mat(D,D,10,0.1), wk:mat(D,D,11,0.1), wv:mat(D,D,12,0.1), wo:mat(D,D,13,0.1),
+    ln2g:new Float64Array(D).fill(1), ln2b:new Float64Array(D).fill(0),
+    w1:mat(MLP_DIM,D,20,0.1), w2:mat(D,MLP_DIM,21,0.08),
+    lnfg:new Float64Array(D).fill(1), lnfb:new Float64Array(D).fill(0),
   };
 }
 
-function makeMatrix(rows, cols, seed, scale=0.1) {
-  const r = seededRand(seed);
-  const m = [];
-  for (let i = 0; i < rows; i++) {
-    m.push([]);
-    for (let j = 0; j < cols; j++) m[i].push(r() * scale);
+// ═══════════════════════════════════════════════════════
+// FORWARD
+// ═══════════════════════════════════════════════════════
+function forward(tokens){
+  const T=tokens.length, c={tokens,T};
+  const x=tokens.map((t,i)=>addV(Array.from(model.wte[Math.min(t,VOCAB_SIZE-1)]||new Float64Array(D)),Array.from(model.wpe[Math.min(i,CTX-1)])));
+  c.embeds=x.map(r=>[...r]);
+  const ln1=x.map(xi=>ln(xi,model.ln1g,model.ln1b));
+  c.ln1=ln1.map(r=>[...r]);
+  const Q=ln1.map(xi=>mm(xi,model.wq)), K=ln1.map(xi=>mm(xi,model.wk)), V=ln1.map(xi=>mm(xi,model.wv));
+  c.Q=Q;c.K=K;c.V=V;
+  const sc=Math.sqrt(HEAD_D);
+  const rawA=Q.map((qi,i)=>K.map((kj,j)=>j>i?-1e9:qi.reduce((s,v,d)=>s+v*kj[d],0)/sc));
+  const attnW=rawA.map(r=>softmax(r));
+  c.attnW=attnW;
+  const attnO=attnW.map((ws,i)=>{const o=new Float64Array(D);ws.forEach((w,j)=>{if(w>1e-7)V[j].forEach((v,d)=>{o[d]+=w*v;});});return Array.from(o);});
+  const attnP=attnO.map(xi=>mm(xi,model.wo));
+  const r1=x.map((xi,i)=>addV(xi,attnP[i]));
+  c.r1=r1.map(r=>[...r]);
+  const ln2=r1.map(xi=>ln(xi,model.ln2g,model.ln2b));
+  const h=ln2.map(xi=>mm(xi,model.w1).map(gelu));
+  c.mlph=h.map(r=>[...r]);
+  const mlpO=h.map(xi=>mm(xi,model.w2));
+  const r2=r1.map((xi,i)=>addV(xi,mlpO[i]));
+  c.r2=r2.map(r=>[...r]);
+  const lnf=r2.map(xi=>ln(xi,model.lnfg,model.lnfb));
+  c.lnf=lnf.map(r=>[...r]);
+  const logits=lnf.map(xi=>model.wte.map(row=>row.reduce((s,w,k)=>s+w*xi[k],0)));
+  c.logits=logits;
+  c.probs=logits.map(l=>softmax(l));
+  return c;
+}
+
+function computeLoss(tokens){
+  if(tokens.length<2)return 0;
+  const c=forward(tokens.slice(0,CTX));
+  let loss=0,T=Math.min(tokens.length-1,CTX-1);
+  for(let i=0;i<T;i++){const t=tokens[i+1];if(t<VOCAB_SIZE)loss-=Math.log((c.probs[i][t]||1e-9));}
+  return loss/T;
+}
+
+function trainStep(tokens){
+  if(tokens.length<2||!model)return Infinity;
+  const toks=tokens.slice(0,CTX+1);
+  const loss0=computeLoss(toks), eps=1e-4;
+  const params=[model.wte,model.w1,model.w2,model.wq,model.wv,model.wo];
+  for(const M of params){
+    for(let i=0;i<M.length;i++){
+      for(let j=0;j<M[i].length;j++){
+        M[i][j]+=eps;const lp=computeLoss(toks);M[i][j]-=eps;
+        M[i][j]-=LR*(lp-loss0)/eps;
+      }
+    }
   }
-  return m;
+  return loss0;
 }
 
-function makeVec(len, seed, scale=1) {
-  const r = seededRand(seed);
-  return Array.from({length:len}, () => r() * scale);
+// ═══════════════════════════════════════════════════════
+// VOCAB / TOKENIZER
+// ═══════════════════════════════════════════════════════
+function loadPreset(){
+  document.getElementById('corpus-input').value="roses are red\nviolets are blue\nroses are red\nroses bloom too";
+  buildVocab();
 }
 
-// ── Color helpers ────────────────────────────────────────────────────────────
-function valToColor(v, min, max, alpha=1) {
-  const t = (v - min) / (max - min + 1e-9);
-  const c = t > 0.5
-    ? lerpColor([0,60,80], [0,212,255], (t-0.5)*2)
-    : lerpColor([80,10,10], [0,60,80], t*2);
-  return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+function buildVocab(){
+  const corpus=document.getElementById('corpus-input').value;
+  const chars=[...new Set(corpus.split(''))].sort();
+  vocab=chars; charToId={}; idToChar={};
+  chars.forEach((c,i)=>{charToId[c]=i;idToChar[i]=c;});
+  VOCAB_SIZE=chars.length;
+  document.getElementById('vocab-size-lbl').textContent=`(${VOCAB_SIZE} tokens)`;
+  renderVocabChips(); renderEmbPreview(); renderPosPreview();
+  initModel(); tokenizeInput(); buildWiLayers(); renderWiLayerList();
 }
 
-function lerpColor(a, b, t) {
-  return a.map((v,i) => Math.round(v + (b[i]-v)*t));
-}
-
-// ── State ────────────────────────────────────────────────────────────────────
-let currentView = 'linear';
-let currentLayer = null;
-let selectedCell = null; // {kind:'input'|'weight'|'output', row, col}
-let layers = {};
-
-function buildLayers() {
-  layers = {
-    linear: [
-      {
-        id: 'embed', name: 'Token Embedding', type: 'Lookup (W_e)',
-        inputVec: makeVec(8, 1, 1),  // one-hot conceptually, show as index
-        W: makeMatrix(16, 8, 10, 0.3),
-        desc: 'Each input token index selects a row from the embedding matrix. No multiply — just a lookup. The selected row IS the activation.',
-        formula: 'x = W_e[token_id]',
-        isLookup: true
-      },
-      {
-        id: 'wq', name: 'Query Projection', type: 'Linear (W_Q)',
-        inputVec: makeVec(16, 2, 1),
-        W: makeMatrix(16, 16, 20, 0.15),
-        desc: 'Input activation (d_model vector) is multiplied by W_Q. Each output dimension is a weighted sum of all inputs. Creates the "query" used in attention.',
-        formula: 'Q = x · W_Q'
-      },
-      {
-        id: 'wk', name: 'Key Projection', type: 'Linear (W_K)',
-        inputVec: makeVec(16, 3, 1),
-        W: makeMatrix(16, 16, 30, 0.15),
-        desc: 'Same structure as W_Q. The key vector is compared against queries via dot product to produce attention scores.',
-        formula: 'K = x · W_K'
-      },
-      {
-        id: 'wv', name: 'Value Projection', type: 'Linear (W_V)',
-        inputVec: makeVec(16, 4, 1),
-        W: makeMatrix(16, 16, 40, 0.15),
-        desc: 'Value vectors are what attention actually retrieves. After softmax weighting the scores, values are summed to produce the attention output.',
-        formula: 'V = x · W_V'
-      },
-      {
-        id: 'wo', name: 'Output Projection', type: 'Linear (W_O)',
-        inputVec: makeVec(16, 5, 1),
-        W: makeMatrix(16, 16, 50, 0.15),
-        desc: 'After concatenating all heads, W_O projects back to d_model. This is where multi-head results are mixed together.',
-        formula: 'out = concat(heads) · W_O'
-      },
-      {
-        id: 'mlp1', name: 'MLP Layer 1', type: 'Linear (W_1)',
-        inputVec: makeVec(16, 6, 1),
-        W: makeMatrix(32, 16, 60, 0.12),
-        desc: 'First MLP layer expands from d_model → 4×d_model (hidden_dim). This expansion gives the network capacity to represent complex functions.',
-        formula: 'h = GELU(x · W_1 + b_1)'
-      },
-      {
-        id: 'mlp2', name: 'MLP Layer 2', type: 'Linear (W_2)',
-        inputVec: makeVec(32, 7, 1),
-        W: makeMatrix(16, 32, 70, 0.08),
-        desc: 'Second MLP layer compresses back from hidden_dim → d_model. Information is filtered and projected back into the residual stream.',
-        formula: 'out = h · W_2 + b_2'
-      },
-      {
-        id: 'lmhead', name: 'LM Head', type: 'Linear (W_unembed)',
-        inputVec: makeVec(16, 8, 1),
-        W: makeMatrix(24, 16, 80, 0.1),
-        desc: 'Final projection to vocabulary size. Each output logit is the "score" for that token being next. Often tied to embedding weights (transposed).',
-        formula: 'logits = x · W_e.T'
-      },
-    ],
-
-    attention: [
-      {
-        id: 'scores', name: 'Attention Scores', type: 'QKᵀ / √d_k',
-        Q: makeMatrix(6, 8, 100, 0.4),
-        K: makeMatrix(6, 8, 200, 0.4),
-        desc: 'Each query token attends to every key token. Score[i,j] = Q[i] · K[j] / √d_k. High scores mean token i finds token j relevant.',
-        formula: 'A = softmax(Q·Kᵀ / √d_k)'
-      },
-      {
-        id: 'attn_out', name: 'Weighted Values', type: 'A · V',
-        Q: makeMatrix(6, 8, 300, 0.4),
-        K: makeMatrix(6, 8, 400, 0.4),
-        desc: 'After softmax, attention weights are used to blend value vectors. Each output position is a weighted average of all value vectors.',
-        formula: 'out = softmax(A) · V'
-      }
-    ],
-
-    layernorm: [
-      {
-        id: 'ln1', name: 'LayerNorm', type: 'Normalize + Scale',
-        inputVec: makeVec(16, 9, 2),
-        gamma: makeVec(16, 90, 0.5),
-        beta: makeVec(16, 91, 0.2),
-        desc: 'LayerNorm normalizes each position independently. γ (gamma) scales each dimension, β (beta) shifts it. Only 2×d_model params — tiny but critical.',
-        formula: 'y = γ · (x - μ)/σ + β'
-      }
-    ]
-  };
-}
-
-// ── Render layer list ────────────────────────────────────────────────────────
-function renderLayerList() {
-  const list = document.getElementById('layer-list');
-  list.innerHTML = '';
-  const src = layers[currentView] || [];
-  src.forEach((l, i) => {
-    const div = document.createElement('div');
-    div.className = 'layer-item' + (currentLayer?.id === l.id ? ' active' : '');
-    div.innerHTML = `${l.name}<div class="ltype">${l.type}</div>`;
-    div.onclick = () => selectLayer(l);
-    list.appendChild(div);
+function renderVocabChips(){
+  const el=document.getElementById('vocab-chips');
+  el.innerHTML='';
+  const COLS=['#00e5ff','#00ff88','#bb66ff','#ff8844','#ffcc44','#ff4466'];
+  vocab.forEach((c,i)=>{
+    const d=document.createElement('div');
+    d.className='vchip';
+    const dc=c===' '?'·':c==='\n'?'↵':c;
+    d.innerHTML=`<span class="ch" style="color:${COLS[i%COLS.length]}">${dc}</span><span class="vi">${i}</span>`;
+    el.appendChild(d);
   });
 }
 
-function selectLayer(l) {
-  currentLayer = l;
-  selectedCell = null;
-  renderLayerList();
-  document.getElementById('layer-name').textContent = l.name;
-  document.getElementById('op-name').textContent = l.type;
-  document.getElementById('op-desc').textContent = l.desc;
-  const fEl = document.getElementById('formula');
-  fEl.style.display = 'block';
-  fEl.textContent = l.formula;
-  document.getElementById('selection-section').style.display = 'none';
-  document.getElementById('stats-section').style.display = 'none';
-  drawViz();
-}
-
-// ── Main draw ────────────────────────────────────────────────────────────────
-const canvas = document.getElementById('main-canvas');
-const ctx = canvas.getContext('2d');
-
-const CELL = 26;
-const GAP = 6;
-const LABEL_W = 90;
-const MAT_GAP = 40;
-
-function drawViz() {
-  if (!currentLayer) return;
-  const l = currentLayer;
-
-  if (currentView === 'linear') drawLinear(l);
-  else if (currentView === 'attention') drawAttention(l);
-  else if (currentView === 'layernorm') drawLayerNorm(l);
-}
-
-function matBounds(W) {
-  let min = Infinity, max = -Infinity;
-  for (const row of W) for (const v of row) {
-    if (v < min) min = v;
-    if (v > max) max = v;
-  }
-  return {min, max};
-}
-
-function vecBounds(v) {
-  return {min: Math.min(...v), max: Math.max(...v)};
-}
-
-function drawLinear(l) {
-  const W = l.W;
-  const rows = W.length;
-  const cols = W[0].length;
-  const inp = l.inputVec;
-
-  // Compute output
-  const out = W.map(row => row.reduce((s, w, j) => s + w * inp[j], 0));
-
-  const inpLen = inp.length;
-  const outLen = out.length;
-
-  // Layout: [input vec] [W matrix] [output vec]
-  const inpX = 10;
-  const inpY = 30;
-  const matX = inpX + CELL + MAT_GAP;
-  const matY = inpY;
-  const outX = matX + cols * (CELL + 2) + MAT_GAP;
-  const outY = inpY;
-
-  const W_H = rows * (CELL + 2);
-  const W_W = cols * (CELL + 2);
-  const totalH = Math.max(inpLen, rows) * (CELL + 2) + 80;
-  const totalW = outX + CELL + 60;
-
-  canvas.width = totalW;
-  canvas.height = totalH;
-  ctx.clearRect(0, 0, totalW, totalH);
-
-  const wb = matBounds(W);
-  const ib = vecBounds(inp);
-  const ob = vecBounds(out);
-
-  // Selected col highlight
-  const selCol = selectedCell?.kind === 'input' ? selectedCell.row : null;
-  const selRow = selectedCell?.kind === 'output' ? selectedCell.row : null;
-
-  // ── Draw weight matrix ───────────────────────────────────────────────────
-  drawLabel(ctx, 'W', matX + W_W/2, matY - 12, '#c080ff');
-  drawLabel(ctx, `${rows}×${cols}`, matX + W_W/2, matY - 2, '#5a4a7a', 8);
-
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const x = matX + c * (CELL + 2);
-      const y = matY + r * (CELL + 2);
-      const v = W[r][c];
-
-      let alpha = 0.6;
-      let stroke = null;
-
-      if (selCol !== null && c === selCol) { alpha = 1; stroke = '#ff7a40'; }
-      if (selRow !== null && r === selRow) { alpha = 1; stroke = '#ff7a40'; }
-      if (selectedCell?.kind === 'weight' && selectedCell.row === r && selectedCell.col === c) {
-        stroke = '#ffffff'; alpha = 1;
-      }
-
-      ctx.fillStyle = valToColor(v, wb.min, wb.max, alpha);
-      ctx.fillRect(x, y, CELL, CELL);
-      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1); }
-
-      if (CELL > 18) {
-        ctx.fillStyle = `rgba(255,255,255,${alpha * 0.7})`;
-        ctx.font = '7px IBM Plex Mono';
-        ctx.textAlign = 'center';
-        ctx.fillText(v.toFixed(2), x + CELL/2, y + CELL/2 + 3);
-      }
+function renderEmbPreview(){
+  if(!model)return;
+  const wrap=document.getElementById('emb-preview');
+  wrap.innerHTML='';
+  vocab.slice(0,Math.min(8,VOCAB_SIZE)).forEach((ch,i)=>{
+    const emb=model.wte[i]||new Float64Array(D);
+    const row=document.createElement('div');
+    row.className='emb-row';
+    const dc=ch===' '?'·':ch==='\n'?'↵':ch;
+    row.innerHTML=`<span class="emb-ch">'${dc}'</span>`;
+    const {mn,mx}=minmax(Array.from(emb));
+    for(let d=0;d<D;d++){
+      const cell=document.createElement('div');
+      cell.className='emb-cell';
+      const t=(emb[d]-mn)/(mx-mn+1e-9);
+      const r=Math.round(t<0.5?20:(t-0.5)*2*180), g=Math.round(t*140), b=Math.round(t<0.5?(0.5-t)*2*220:40);
+      cell.style.background=`rgb(${r},${g},${b})`;
+      cell.title=emb[d].toFixed(3);
+      row.appendChild(cell);
     }
-  }
-
-  // ── Draw input vector ────────────────────────────────────────────────────
-  drawLabel(ctx, 'input x', inpX + CELL/2, matY - 12, '#00d4ff');
-  drawLabel(ctx, `${inpLen}`, inpX + CELL/2, matY - 2, '#005566', 8);
-
-  for (let i = 0; i < inpLen; i++) {
-    const x = inpX;
-    const y = matY + i * (CELL + 2);
-    const v = inp[i];
-    let alpha = 0.6;
-    let stroke = null;
-    if (selectedCell?.kind === 'input' && selectedCell.row === i) { alpha = 1; stroke = '#ff7a40'; }
-    if (selRow !== null) { alpha = 1; }
-
-    ctx.fillStyle = valToColor(v, ib.min, ib.max, alpha);
-    ctx.fillRect(x, y, CELL, CELL);
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1); }
-
-    ctx.fillStyle = `rgba(255,255,255,${alpha * 0.8})`;
-    ctx.font = '7px IBM Plex Mono';
-    ctx.textAlign = 'center';
-    ctx.fillText(v.toFixed(2), x + CELL/2, y + CELL/2 + 3);
-  }
-
-  // ── Draw output vector ───────────────────────────────────────────────────
-  drawLabel(ctx, 'output', outX + CELL/2, matY - 12, '#40ff90');
-  drawLabel(ctx, `${outLen}`, outX + CELL/2, matY - 2, '#004422', 8);
-
-  for (let i = 0; i < outLen; i++) {
-    const x = outX;
-    const y = matY + i * (CELL + 2);
-    const v = out[i];
-    let alpha = 0.6;
-    let stroke = null;
-    if (selectedCell?.kind === 'output' && selectedCell.row === i) { alpha = 1; stroke = '#ff7a40'; }
-    if (selCol !== null) { alpha = 0.3; }
-
-    ctx.fillStyle = valToColor(v, ob.min, ob.max, alpha);
-    ctx.fillRect(x, y, CELL, CELL);
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1); }
-
-    ctx.fillStyle = `rgba(255,255,255,${alpha * 0.8})`;
-    ctx.font = '7px IBM Plex Mono';
-    ctx.textAlign = 'center';
-    ctx.fillText(v.toFixed(3), x + CELL/2, y + CELL/2 + 3);
-  }
-
-  // ── Connector lines ──────────────────────────────────────────────────────
-  if (selCol !== null) {
-    // Show: input[selCol] → column selCol of W → (contributes to all outputs)
-    const ix = inpX + CELL;
-    const iy = matY + selCol * (CELL + 2) + CELL/2;
-    const mx = matX + selCol * (CELL + 2);
-    ctx.strokeStyle = '#ff7a4066';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3,3]);
-    ctx.beginPath(); ctx.moveTo(ix, iy); ctx.lineTo(mx, iy); ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Lines from each row of that column to output
-    for (let r = 0; r < rows; r++) {
-      const wx = matX + selCol * (CELL+2) + CELL;
-      const wy = matY + r * (CELL+2) + CELL/2;
-      const ox = outX;
-      const oy = matY + r * (CELL+2) + CELL/2;
-      const contrib = Math.abs(W[r][selCol] * inp[selCol]) / (Math.abs(out[r]) + 1e-9);
-      ctx.strokeStyle = `rgba(255,122,64,${Math.min(contrib * 2, 0.6)})`;
-      ctx.lineWidth = 0.8;
-      ctx.beginPath(); ctx.moveTo(wx, wy); ctx.lineTo(ox, oy); ctx.stroke();
-    }
-
-  } else if (selRow !== null) {
-    // Output row selected: show which weights and inputs contributed
-    const ox = outX;
-    const oy = matY + selRow * (CELL+2) + CELL/2;
-    for (let c = 0; c < cols; c++) {
-      const mx = matX + c * (CELL+2) + CELL;
-      const my = matY + selRow * (CELL+2) + CELL/2;
-      const contrib = Math.abs(W[selRow][c] * inp[c]) / (Math.abs(out[selRow]) + 1e-9);
-      ctx.strokeStyle = `rgba(255,122,64,${Math.min(contrib * 3, 0.7)})`;
-      ctx.lineWidth = 0.8;
-      ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(ox, oy); ctx.stroke();
-      // Also input to matrix
-      const ix = inpX + CELL;
-      const iy = matY + c * (CELL+2) + CELL/2;
-      ctx.strokeStyle = `rgba(255,122,64,${Math.min(contrib * 2, 0.5)})`;
-      ctx.beginPath(); ctx.moveTo(ix, iy); ctx.lineTo(matX + c * (CELL+2), my); ctx.stroke();
-    }
-  }
-
-  // ── Dot product + equals labels ──────────────────────────────────────────
-  ctx.fillStyle = '#3a4a5a';
-  ctx.font = '14px IBM Plex Mono';
-  ctx.textAlign = 'center';
-  ctx.fillText('×', matX - MAT_GAP/2, matY + (rows * (CELL+2))/2);
-  ctx.fillText('=', outX - MAT_GAP/2, matY + (rows * (CELL+2))/2);
-
-  // ── Update stats ─────────────────────────────────────────────────────────
-  document.getElementById('stats-section').style.display = 'block';
-  document.getElementById('mat-stats').innerHTML =
-    `<div class="info-row">shape <span>${rows}×${cols}</span></div>
-     <div class="info-row">params <span>${rows*cols}</span></div>
-     <div class="info-row">W min <span>${wb.min.toFixed(3)}</span></div>
-     <div class="info-row">W max <span>${wb.max.toFixed(3)}</span></div>
-     <div class="info-row">out min <span>${ob.min.toFixed(3)}</span></div>
-     <div class="info-row">out max <span>${ob.max.toFixed(3)}</span></div>`;
-
-  document.getElementById('instruction').textContent =
-    l.isLookup
-      ? 'click input cell = select token row · click weight row = see embedding'
-      : 'click input cell = highlight its weight column · click output cell = trace contributions';
-}
-
-function drawAttention(l) {
-  const Q = l.Q, K = l.K;
-  const T = Q.length, d = Q[0].length;
-  const scale = Math.sqrt(d);
-
-  // Compute raw scores
-  const rawScores = Q.map(qi => K.map(kj => qi.reduce((s,v,i)=>s+v*kj[i],0)/scale));
-
-  // Causal mask + softmax
-  const scores = rawScores.map((row, i) => {
-    const masked = row.map((v,j) => j > i ? -1e9 : v);
-    const maxV = Math.max(...masked.filter(v=>v>-1e8));
-    const exps = masked.map(v => v < -1e8 ? 0 : Math.exp(v - maxV));
-    const sum = exps.reduce((a,b)=>a+b,0);
-    return exps.map(v=>v/sum);
+    wrap.appendChild(row);
   });
-
-  const T2 = T;
-  const matW = T2 * (CELL+2);
-  const qW = d * (CELL+2);
-
-  canvas.width = qW + MAT_GAP + matW + MAT_GAP + qW + 60;
-  canvas.height = T * (CELL+2) + 80;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const qX = 10, qY = 30;
-  const sX = qX + qW + MAT_GAP;
-  const kX = sX + matW + MAT_GAP;
-
-  const qb = matBounds(Q), kb = matBounds(K), sb = {min:0, max:1};
-
-  drawLabel(ctx, 'Q (queries)', qX + qW/2, qY-12, '#00d4ff');
-  drawMatrix(ctx, Q, qX, qY, qb, CELL);
-
-  drawLabel(ctx, 'attention scores', sX + matW/2, qY-12, '#ffd060');
-  drawLabel(ctx, 'softmax(QKᵀ/√d)', sX + matW/2, qY-2, '#5a5020', 8);
-  drawMatrix(ctx, scores, sX, qY, sb, CELL, selectedCell?.kind==='score' ? selectedCell : null);
-
-  drawLabel(ctx, 'K (keys)', kX + qW/2, qY-12, '#c080ff');
-  drawMatrix(ctx, K, kX, qY, kb, CELL);
-
-  // Causal mask overlay
-  for (let r = 0; r < T; r++) {
-    for (let c = r+1; c < T2; c++) {
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(sX + c*(CELL+2), qY + r*(CELL+2), CELL, CELL);
-      ctx.fillStyle = '#1a1a2e';
-      ctx.font = '8px IBM Plex Mono';
-      ctx.textAlign = 'center';
-      ctx.fillText('▓', sX + c*(CELL+2) + CELL/2, qY + r*(CELL+2) + CELL/2 + 3);
-    }
-  }
-
-  document.getElementById('stats-section').style.display = 'block';
-  document.getElementById('mat-stats').innerHTML =
-    `<div class="info-row">seq len T <span>${T}</span></div>
-     <div class="info-row">head dim <span>${d}</span></div>
-     <div class="info-row">scale √d <span>${scale.toFixed(2)}</span></div>
-     <div class="info-row">causal mask <span>✓</span></div>`;
-
-  document.getElementById('instruction').textContent =
-    'attention score[i,j] = how much token i attends to token j · masked = future';
 }
 
-function drawLayerNorm(l) {
-  const x = l.inputVec, g = l.gamma, b = l.beta;
-  const N = x.length;
-  const mu = x.reduce((s,v)=>s+v,0)/N;
-  const variance = x.reduce((s,v)=>s+(v-mu)**2,0)/N;
-  const sigma = Math.sqrt(variance + 1e-5);
-  const xhat = x.map(v=>(v-mu)/sigma);
-  const out = xhat.map((v,i)=>g[i]*v+b[i]);
+function renderPosPreview(){
+  if(!model)return;
+  const wrap=document.getElementById('pos-preview');
+  wrap.innerHTML='';
+  for(let i=0;i<CTX;i++){
+    const emb=model.wpe[i];
+    const row=document.createElement('div');
+    row.className='emb-row';
+    row.innerHTML=`<span class="emb-ch">p${i}</span>`;
+    const {mn,mx}=minmax(Array.from(emb));
+    for(let d=0;d<D;d++){
+      const cell=document.createElement('div');
+      cell.className='emb-cell';
+      const t=(emb[d]-mn)/(mx-mn+1e-9);
+      const r=Math.round(t*60), g=Math.round(60+t*120), b=Math.round(t<0.5?(0.5-t)*2*200:t*100);
+      cell.style.background=`rgb(${r},${g},${b})`;
+      cell.title=emb[d].toFixed(3);
+      row.appendChild(cell);
+    }
+    wrap.appendChild(row);
+  }
+}
 
-  canvas.width = 5*(CELL+MAT_GAP) + 160;
-  canvas.height = N*(CELL+2) + 80;
+function tokenizeInput(){
+  const text=document.getElementById('tok-input').value;
+  const el=document.getElementById('tok-display');
+  el.innerHTML='';
+  if(!vocab.length){el.innerHTML='<span style="color:var(--dim);font-size:8px">build vocab first</span>';return;}
+  const COLS=['#00e5ff','#00ff88','#bb66ff','#ff8844','#ffcc44'];
+  [...text].forEach(ch=>{
+    const id=charToId[ch];
+    const d=document.createElement('div');
+    d.className='tchip';
+    const col=id!==undefined?COLS[id%COLS.length]:'#ff4466';
+    d.style.cssText=`border-color:${col}88;color:${col};background:${col}11`;
+    const dc=ch===' '?'·':ch==='\n'?'↵':ch;
+    d.innerHTML=`${dc}<span class="tid">${id!==undefined?id:'?'}</span>`;
+    el.appendChild(d);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// TRAINING
+// ═══════════════════════════════════════════════════════
+function setLR(el){LR=el.value/1000;document.getElementById('lr-val').textContent=LR.toFixed(4);}
+function setSpeed(el){
+  const sp=[800,400,100],lb=['slow','normal','fast'];
+  SPEED=sp[el.value-1];
+  document.getElementById('spd-val').textContent=lb[el.value-1];
+  if(trainingActive){clearInterval(trainTimer);trainTimer=setInterval(doStep,SPEED);}
+}
+function toggleTrain(){
+  if(!model){alert('Build vocab first (① VOCAB)');return;}
+  trainingActive=!trainingActive;
+  const btn=document.getElementById('play-btn'),pill=document.getElementById('hdr-pill');
+  if(trainingActive){
+    btn.textContent='■ STOP';btn.classList.add('stop');
+    pill.textContent='TRAINING';pill.className='hdr-pill training';
+    trainingTokens=getCorpusTokens();
+    trainTimer=setInterval(doStep,SPEED);
+  } else {
+    btn.textContent='▶ TRAIN';btn.classList.remove('stop');
+    pill.textContent='PAUSED';pill.className='hdr-pill';
+    clearInterval(trainTimer);
+  }
+}
+function stepOnce(){if(!model){alert('Build vocab first');return;}trainingTokens=getCorpusTokens();doStep();}
+function resetModel(){
+  stepCount=0;lossHistory=[];
+  if(VOCAB_SIZE>0)initModel();
+  document.getElementById('s-step').textContent='0';
+  document.getElementById('s-loss').textContent='—';
+  document.getElementById('hdr-step').textContent='0';
+  document.getElementById('hdr-loss').textContent='—';
+  document.getElementById('train-log').innerHTML='';
+  document.getElementById('phase-badge').textContent='IDLE';
+  document.getElementById('phase-badge').className='phase-badge';
+  document.getElementById('pass-desc').textContent='press TRAIN or step button';
+  drawLossChart(); clearCanvas('train-canvas');
+  buildWiLayers(); renderWiLayerList(); wiLayer=null; wiSel=null; renderWiCanvas();
+}
+function getCorpusTokens(){
+  return [...document.getElementById('corpus-input').value].map(c=>charToId[c]).filter(id=>id!==undefined);
+}
+
+let stepPhase=0;
+async function doStep(){
+  if(!model||trainingTokens.length<2)return;
+  const start=Math.floor(Math.random()*Math.max(1,trainingTokens.length-CTX-1));
+  const win=trainingTokens.slice(start,start+CTX+1);
+  if(win.length<2)return;
+
+  setPhaseBadge('FORWARD','computing activations →');
+  trainCache=forward(win.slice(0,CTX));
+  drawTrainAnim(trainCache,'forward');
+  await delay(SPEED*0.35);
+
+  // loss
+  let loss=0,T=Math.min(win.length-1,CTX-1);
+  for(let i=0;i<T;i++){const t=win[i+1];if(t<VOCAB_SIZE)loss-=Math.log(trainCache.probs[i][t]||1e-9);}
+  loss/=T;
+
+  setPhaseBadge('BACKWARD',`loss=${loss.toFixed(4)} · backprop ←`);
+  drawTrainAnim(trainCache,'backward');
+  await delay(SPEED*0.35);
+
+  setPhaseBadge('UPDATE','applying weight updates');
+  const actualLoss=trainStep(win);
+  drawTrainAnim(trainCache,'update');
+  await delay(SPEED*0.2);
+
+  stepCount++;lossHistory.push(actualLoss);
+  if(lossHistory.length>300)lossHistory.shift();
+
+  document.getElementById('s-step').textContent=stepCount;
+  document.getElementById('s-loss').textContent=actualLoss.toFixed(4);
+  document.getElementById('hdr-step').textContent=stepCount;
+  document.getElementById('hdr-loss').textContent=actualLoss.toFixed(4);
+
+  drawLossChart();
+  addLogLine(win,actualLoss);
+
+  // Refresh weights inspector live
+  buildWiLayers();
+  renderWiCanvas();
+  renderEmbPreview(); // live update vocab tab too
+}
+
+function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+function setPhaseBadge(phase,desc){
+  const b=document.getElementById('phase-badge');
+  b.textContent=phase;b.className='phase-badge '+phase.toLowerCase();
+  document.getElementById('pass-desc').textContent=desc;
+}
+function addLogLine(tokens,loss){
+  const log=document.getElementById('train-log');
+  const d=document.createElement('div');
+  d.className='log-line';
+  const text=tokens.map(t=>idToChar[t]||'?').join('').replace(/\n/g,'↵');
+  d.innerHTML=`<span class="pf">→</span> "${text}" loss=${loss.toFixed(3)}`;
+  log.insertBefore(d,log.firstChild);
+  if(log.children.length>30)log.removeChild(log.lastChild);
+}
+
+// ── Loss chart ──────────────────────────────────────────
+function drawLossChart(){
+  const canvas=document.getElementById('loss-canvas');
+  const R=canvas.getBoundingClientRect();
+  canvas.width=R.width||180; canvas.height=R.height||100;
+  const ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  const xb = vecBounds(x), xhb = vecBounds(xhat), ob = vecBounds(out);
-  const gb = vecBounds(g), bb = vecBounds(b);
-
-  let cx = 10;
-  const y0 = 30;
-
-  const drawVec = (vec, label, sub, color, bounds) => {
-    drawLabel(ctx, label, cx+CELL/2, y0-12, color);
-    if (sub) drawLabel(ctx, sub, cx+CELL/2, y0-2, '#333a44', 8);
-    for (let i=0; i<N; i++) {
-      const v = vec[i];
-      ctx.fillStyle = valToColor(v, bounds.min, bounds.max, 0.8);
-      ctx.fillRect(cx, y0+i*(CELL+2), CELL, CELL);
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.font = '7px IBM Plex Mono';
-      ctx.textAlign = 'center';
-      ctx.fillText(v.toFixed(2), cx+CELL/2, y0+i*(CELL+2)+CELL/2+3);
-    }
-    cx += CELL + MAT_GAP;
-  };
-
-  const op = (sym) => {
-    ctx.fillStyle = '#3a4a5a';
-    ctx.font = '14px IBM Plex Mono';
-    ctx.textAlign = 'center';
-    ctx.fillText(sym, cx - MAT_GAP/2, y0 + N*(CELL+2)/2);
-  };
-
-  drawVec(x, 'input x', `μ=${mu.toFixed(2)} σ=${sigma.toFixed(2)}`, '#00d4ff', xb);
-  op('→');
-  drawVec(xhat, 'x̂ norm', '(x-μ)/σ', '#ffd060', xhb);
-  op('×');
-  drawVec(g, 'γ scale', 'learned', '#c080ff', gb);
-  op('+');
-  drawVec(b, 'β shift', 'learned', '#ff7a40', bb);
-  op('=');
-  drawVec(out, 'output', 'γ·x̂+β', '#40ff90', ob);
-
-  document.getElementById('stats-section').style.display = 'block';
-  document.getElementById('mat-stats').innerHTML =
-    `<div class="info-row">dim <span>${N}</span></div>
-     <div class="info-row">μ (mean) <span>${mu.toFixed(3)}</span></div>
-     <div class="info-row">σ (std) <span>${sigma.toFixed(3)}</span></div>
-     <div class="info-row">params <span>${N*2} (γ+β)</span></div>`;
-
-  document.getElementById('instruction').textContent =
-    'each position normalized independently · γ and β are the only learned weights';
+  if(lossHistory.length<2)return;
+  const pad=12,W=canvas.width-pad*2,H=canvas.height-pad*2;
+  const maxL=Math.max(...lossHistory),minL=Math.min(...lossHistory);
+  ctx.strokeStyle='#16162a';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const y=pad+(i/4)*H;
+    ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(pad+W,y);ctx.stroke();
+    ctx.fillStyle='#2a3a4a';ctx.font='7px Fira Code';ctx.textAlign='right';
+    ctx.fillText((maxL-i/4*(maxL-minL)).toFixed(2),pad-2,y+3);
+  }
+  ctx.beginPath();
+  lossHistory.forEach((l,i)=>{
+    const x=pad+(i/(lossHistory.length-1))*W;
+    const y=pad+(1-(l-minL)/(maxL-minL+1e-9))*H;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle='#00ff8888';ctx.lineWidth=1.5;ctx.stroke();
+  const last=lossHistory[lossHistory.length-1];
+  const lx=pad+W,ly=pad+(1-(last-minL)/(maxL-minL+1e-9))*H;
+  ctx.beginPath();ctx.arc(lx,ly,3,0,Math.PI*2);
+  ctx.fillStyle='#00ff88';ctx.fill();
 }
 
-function drawMatrix(ctx, M, x, y, bounds, cell, sel=null) {
-  for (let r=0; r<M.length; r++) {
-    for (let c=0; c<M[0].length; c++) {
-      const v = M[r][c];
-      ctx.fillStyle = valToColor(v, bounds.min, bounds.max, 0.75);
-      ctx.fillRect(x+c*(cell+2), y+r*(cell+2), cell, cell);
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.font = '7px IBM Plex Mono';
-      ctx.textAlign = 'center';
-      ctx.fillText(v.toFixed(2), x+c*(cell+2)+cell/2, y+r*(cell+2)+cell/2+3);
+// ── Training animation canvas ────────────────────────────
+function clearCanvas(id){const c=document.getElementById(id);c.width=10;c.height=10;}
+
+function drawTrainAnim(cache,phase){
+  const canvas=document.getElementById('train-canvas');
+  const T=cache.T,CELL=13,GAP=2;
+  const layers=['embeds','ln1','r1','mlph','r2','lnf'];
+  const labels=['EMBED','LN1','ATTN+R','MLP','RES2','LN_F'];
+  const colW=T*(CELL+GAP)+28;
+  const W=layers.length*colW+40, H=D*(CELL+GAP)+80;
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  layers.forEach((key,li)=>{
+    const data=cache[key]; if(!data)return;
+    const bx=20+li*colW,by=36;
+    ctx.fillStyle=phase==='backward'?'#ff446666':phase==='update'?'#00ff8866':'#00e5ff66';
+    ctx.font='7px Fira Code';ctx.textAlign='center';
+    ctx.fillText(labels[li],bx+T*(CELL+GAP)/2,by-8);
+    data.forEach((vec,t)=>{
+      const {mn,mx}=minmax(vec);
+      vec.forEach((v,d)=>{
+        const norm=(v-mn)/(mx-mn+1e-9);
+        let r,g,b;
+        if(phase==='backward'){r=Math.round(60+norm*180);g=10;b=30;}
+        else if(phase==='update'){r=10;g=Math.round(60+norm*180);b=50;}
+        else{r=10;g=Math.round(40+norm*110);b=Math.round(70+norm*160);}
+        ctx.fillStyle=`rgb(${r},${g},${b})`;
+        ctx.fillRect(bx+t*(CELL+GAP),by+d*(CELL+GAP),CELL,CELL);
+      });
+    });
+    if(li<layers.length-1){
+      const ax=bx+T*(CELL+GAP)+8,ay=by+D*(CELL+GAP)/2;
+      ctx.strokeStyle=phase==='backward'?'#ff446633':'#00e5ff33';
+      ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(ax+14,ay);ctx.stroke();
+    }
+  });
+
+  // Attention heatmap strip at bottom
+  if(cache.attnW&&phase!=='update'){
+    const T2=cache.attnW.length;
+    const ax=20,ay=H-38;
+    ctx.fillStyle='#3a4a5a';ctx.font='7px Fira Code';ctx.textAlign='left';
+    ctx.fillText('ATTN',ax,ay-4);
+    cache.attnW.forEach((row,i)=>{
+      row.forEach((v,j)=>{
+        ctx.fillStyle=j>i?'#0a0a14':`rgba(0,229,255,${Math.min(v*1.2,0.9)})`;
+        ctx.fillRect(ax+j*13,ay+i*13,12,12);
+      });
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// WEIGHTS INSPECTOR
+// ═══════════════════════════════════════════════════════
+
+let wiLayers={linear:[],attn:[],ln:[]};
+
+function buildWiLayers(){
+  if(!model)return;
+  // Use latest model weights — build descriptors
+  wiLayers.linear=[
+    {id:'wte',name:'Token Embedding',type:'Lookup (W_e)',W:model.wte,inp:null,
+     desc:'Each token index selects one row — no multiply, just lookup. The selected row IS the activation.',
+     formula:'x = W_e[ token_id ]',isLookup:true},
+    {id:'wq',name:'Query Projection',type:'Linear (W_Q)',W:model.wq,
+     desc:'Input activation dot W_Q → query vector. Each output dim = weighted sum of all input dims.',
+     formula:'Q = x · W_Q'},
+    {id:'wk',name:'Key Projection',type:'Linear (W_K)',W:model.wk,
+     desc:'Key vectors are compared against queries via dot product to produce attention scores.',
+     formula:'K = x · W_K'},
+    {id:'wv',name:'Value Projection',type:'Linear (W_V)',W:model.wv,
+     desc:'Value vectors get summed weighted by attention scores to produce the attention output.',
+     formula:'V = x · W_V'},
+    {id:'wo',name:'Output Projection',type:'Linear (W_O)',W:model.wo,
+     desc:'After concatenating heads, W_O projects back to d_model, mixing all head outputs.',
+     formula:'out = concat(heads) · W_O'},
+    {id:'w1',name:'MLP Layer 1',type:'Linear (W_1)',W:model.w1,
+     desc:'Expands d_model → 4×d_model then applies GELU. Gives the model representational capacity.',
+     formula:'h = GELU( x · W_1 )'},
+    {id:'w2',name:'MLP Layer 2',type:'Linear (W_2)',W:model.w2,
+     desc:'Compresses hidden_dim back → d_model. Projects enriched features into the residual stream.',
+     formula:'out = h · W_2'},
+  ];
+  wiLayers.attn=[
+    {id:'attnmap',name:'Attention Scores',type:'softmax(QKᵀ/√d)',isAttnMap:true,
+     desc:'Score[i,j] = how much position i attends to j. Causal mask blocks future positions.',
+     formula:'A = softmax( Q·Kᵀ / √d_k )  [causal]'},
+  ];
+  wiLayers.ln=[
+    {id:'ln1',name:'LayerNorm 1',type:'γ·x̂ + β',isLN:true,g:model.ln1g,b:model.ln1b,
+     desc:'Normalizes each position then rescales with learned γ (scale) and β (shift).',
+     formula:'y = γ · (x−μ)/σ + β'},
+    {id:'ln2',name:'LayerNorm 2',type:'γ·x̂ + β',isLN:true,g:model.ln2g,b:model.ln2b,
+     desc:'Same as LN1, applied before MLP. Stabilizes activations entering the MLP block.',
+     formula:'y = γ · (x−μ)/σ + β'},
+    {id:'lnf',name:'Final LayerNorm',type:'γ·x̂ + β',isLN:true,g:model.lnfg,b:model.lnfb,
+     desc:'Applied to final residual before LM head. Normalizes the representation before projection to logits.',
+     formula:'y = γ · (x−μ)/σ + β'},
+  ];
+}
+
+function setWiTab(tab,el){
+  wiTab=tab; wiSel=null;
+  document.querySelectorAll('.wi-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  wiLayer=null;
+  renderWiLayerList();
+  renderWiCanvas();
+  document.getElementById('wi-info').innerHTML='<div style="color:var(--dim);font-size:8px">← select a layer · click any cell</div>';
+}
+
+function renderWiLayerList(){
+  const el=document.getElementById('wi-layer-list');
+  el.innerHTML='';
+  (wiLayers[wiTab]||[]).forEach(l=>{
+    const d=document.createElement('div');
+    d.className='layer-item'+(wiLayer?.id===l.id?' active':'');
+    d.innerHTML=`${l.name}<div class="ltype">${l.type}</div>`;
+    d.onclick=()=>selectWiLayer(l);
+    el.appendChild(d);
+  });
+}
+
+function selectWiLayer(l){
+  wiLayer=l; wiSel=null;
+  renderWiLayerList();
+  renderWiCanvas();
+  showWiInfo(null);
+}
+
+// ── Draw weights canvas ──────────────────────────────────
+const WCELL=22, WGAP=2, WLABELH=18, WMATGAP=32;
+
+function renderWiCanvas(){
+  const canvas=document.getElementById('wi-canvas');
+  if(!wiLayer||!model){canvas.width=10;canvas.height=10;return;}
+
+  if(wiLayer.isAttnMap) return drawWiAttn(canvas);
+  if(wiLayer.isLN) return drawWiLN(canvas);
+  return drawWiLinear(canvas);
+}
+
+function cellColor(v,mn,mx,alpha=0.85){
+  const t=(v-mn)/(mx-mn+1e-9);
+  const r=t<0.5?Math.round(20+(0.5-t)*2*120):Math.round(20+(t-0.5)*2*180);
+  const g=Math.round(20+t*100);
+  const b=t<0.5?Math.round(60+(0.5-t)*2*180):Math.round(20+t*60);
+  return`rgba(${r},${g},${b},${alpha})`;
+}
+
+function drawWiLinear(canvas){
+  const W=wiLayer.W;
+  const rows=W.length, cols=W[0].length;
+  // Always use latest forward cache input if available, else zeros
+  const inp=getWiInput(wiLayer.id);
+  const out=W.map(row=>row.reduce((s,w,j)=>s+w*inp[j],0));
+  const {mn:wmn,mx:wmx}=matMinmax(W);
+  const {mn:imn,mx:imx}=minmax(inp);
+  const {mn:omn,mx:omx}=minmax(out);
+
+  const inpX=8, matX=inpX+WCELL+WMATGAP, outX=matX+cols*(WCELL+WGAP)+WMATGAP;
+  const baseY=WLABELH+4;
+  const CW=outX+WCELL+20, CH=Math.max(rows,cols,inp.length)*(WCELL+WGAP)+baseY+30;
+  canvas.width=CW; canvas.height=CH;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,CW,CH);
+
+  const selCol=wiSel?.kind==='input'?wiSel.row:null;
+  const selRow=wiSel?.kind==='output'?wiSel.row:null;
+
+  // Labels
+  wLabel(ctx,'x',inpX+WCELL/2,baseY-10,'#00e5ff');
+  wLabel(ctx,'W',matX+cols*(WCELL+WGAP)/2,baseY-10,'#bb66ff');
+  wLabel(ctx,`${rows}×${cols}`,matX+cols*(WCELL+WGAP)/2,baseY-2,'#4a3a6a',7);
+  wLabel(ctx,'out',outX+WCELL/2,baseY-10,'#00ff88');
+
+  // Input vector
+  inp.forEach((v,i)=>{
+    const x=inpX,y=baseY+i*(WCELL+WGAP);
+    const sel=wiSel?.kind==='input'&&wiSel.row===i;
+    const alpha=selRow!==null?0.8:sel?1:0.7;
+    ctx.fillStyle=cellColor(v,imn,imx,alpha);
+    ctx.fillRect(x,y,WCELL,WCELL);
+    if(sel){ctx.strokeStyle='#ff8844';ctx.lineWidth=1.5;ctx.strokeRect(x+0.5,y+0.5,WCELL-1,WCELL-1);}
+    ctx.fillStyle=`rgba(255,255,255,${alpha*0.8})`;
+    ctx.font='7px Fira Code';ctx.textAlign='center';
+    ctx.fillText(v.toFixed(2),x+WCELL/2,y+WCELL/2+3);
+  });
+
+  // Weight matrix
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const x=matX+c*(WCELL+WGAP),y=baseY+r*(WCELL+WGAP);
+      const v=W[r][c];
+      const isSelCol=selCol===c, isSelRow=selRow===r;
+      const isSelCell=wiSel?.kind==='weight'&&wiSel.row===r&&wiSel.col===c;
+      let alpha=0.65,stroke=null;
+      if(isSelCol||isSelRow){alpha=1;stroke='#ff8844';}
+      if(isSelCell){alpha=1;stroke='#ffffff';}
+      ctx.fillStyle=cellColor(v,wmn,wmx,alpha);
+      ctx.fillRect(x,y,WCELL,WCELL);
+      if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.strokeRect(x+0.5,y+0.5,WCELL-1,WCELL-1);}
+      ctx.fillStyle=`rgba(255,255,255,${alpha*0.75})`;
+      ctx.font='6px Fira Code';ctx.textAlign='center';
+      ctx.fillText(v.toFixed(2),x+WCELL/2,y+WCELL/2+3);
+    }
+  }
+
+  // Output vector
+  out.forEach((v,i)=>{
+    const x=outX,y=baseY+i*(WCELL+WGAP);
+    const sel=wiSel?.kind==='output'&&wiSel.row===i;
+    let alpha=selCol!==null?0.25:sel?1:0.7;
+    ctx.fillStyle=cellColor(v,omn,omx,alpha);
+    ctx.fillRect(x,y,WCELL,WCELL);
+    if(sel){ctx.strokeStyle='#ff8844';ctx.lineWidth=1.5;ctx.strokeRect(x+0.5,y+0.5,WCELL-1,WCELL-1);}
+    ctx.fillStyle=`rgba(255,255,255,${alpha*0.8})`;
+    ctx.font='7px Fira Code';ctx.textAlign='center';
+    ctx.fillText(v.toFixed(3),x+WCELL/2,y+WCELL/2+3);
+  });
+
+  // Operators
+  ctx.fillStyle='#3a4a5a'; ctx.font='14px Fira Code'; ctx.textAlign='center';
+  ctx.fillText('×',matX-WMATGAP/2,baseY+rows*(WCELL+WGAP)/2);
+  ctx.fillText('=',outX-WMATGAP/2,baseY+rows*(WCELL+WGAP)/2);
+
+  // Connection lines
+  if(selCol!==null){
+    const ix=inpX+WCELL,iy=baseY+selCol*(WCELL+WGAP)+WCELL/2;
+    const mx2=matX+selCol*(WCELL+WGAP);
+    ctx.strokeStyle='#ff884444';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(ix,iy);ctx.lineTo(mx2,iy);ctx.stroke();
+    ctx.setLineDash([]);
+    for(let r=0;r<rows;r++){
+      const contrib=Math.abs(W[r][selCol]*inp[selCol])/(Math.abs(out[r])+1e-9);
+      ctx.strokeStyle=`rgba(255,136,68,${Math.min(contrib*2,0.55)})`;ctx.lineWidth=0.8;
+      ctx.beginPath();ctx.moveTo(matX+selCol*(WCELL+WGAP)+WCELL,baseY+r*(WCELL+WGAP)+WCELL/2);
+      ctx.lineTo(outX,baseY+r*(WCELL+WGAP)+WCELL/2);ctx.stroke();
+    }
+  } else if(selRow!==null){
+    for(let c=0;c<cols;c++){
+      const contrib=Math.abs(W[selRow][c]*inp[c])/(Math.abs(out[selRow])+1e-9);
+      const a=Math.min(contrib*3,0.65);
+      ctx.strokeStyle=`rgba(255,136,68,${a})`;ctx.lineWidth=0.8;
+      const wx=matX+c*(WCELL+WGAP)+WCELL,wy=baseY+selRow*(WCELL+WGAP)+WCELL/2;
+      ctx.beginPath();ctx.moveTo(wx,wy);ctx.lineTo(outX,baseY+selRow*(WCELL+WGAP)+WCELL/2);ctx.stroke();
+      ctx.strokeStyle=`rgba(255,136,68,${a*0.7})`;
+      ctx.beginPath();ctx.moveTo(inpX+WCELL,baseY+c*(WCELL+WGAP)+WCELL/2);ctx.lineTo(matX+c*(WCELL+WGAP),wy);ctx.stroke();
     }
   }
 }
 
-function drawLabel(ctx, text, x, y, color, size=9) {
-  ctx.fillStyle = color;
-  ctx.font = `600 ${size}px IBM Plex Mono`;
-  ctx.textAlign = 'center';
-  ctx.fillText(text, x, y);
+function drawWiAttn(canvas){
+  if(!trainCache){canvas.width=10;canvas.height=10;return;}
+  const aw=trainCache.attnW;
+  const T=aw.length;
+  const SZ=28,GAP=2;
+  const W=T*(SZ+GAP)+80, H=T*(SZ+GAP)+60;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  const ox=40,oy=30;
+  wLabel(ctx,'softmax(QKᵀ/√d)  [causal mask applied]',ox+T*(SZ+GAP)/2,oy-12,'#ffcc44');
+  aw.forEach((row,i)=>{
+    const ch=idToChar[trainCache.tokens[i]]||'?';
+    ctx.fillStyle='#ffcc44';ctx.font='9px Fira Code';ctx.textAlign='right';
+    ctx.fillText(ch==='\n'?'↵':ch,ox-6,oy+i*(SZ+GAP)+SZ/2+4);
+    ctx.fillStyle='#5a6a7a';ctx.textAlign='center';
+    ctx.fillText(ch==='\n'?'↵':ch,ox+i*(SZ+GAP)+SZ/2,oy-4);
+    row.forEach((v,j)=>{
+      const x=ox+j*(SZ+GAP),y=oy+i*(SZ+GAP);
+      const masked=j>i;
+      ctx.fillStyle=masked?'#0c0c18':`rgba(255,204,68,${v*0.9+0.05})`;
+      ctx.fillRect(x,y,SZ,SZ);
+      if(!masked){
+        ctx.fillStyle=`rgba(255,255,255,${v>0.3?0.8:0.4})`;
+        ctx.font='8px Fira Code';ctx.textAlign='center';
+        ctx.fillText(v.toFixed(2),x+SZ/2,y+SZ/2+3);
+      } else {
+        ctx.fillStyle='#1e1e30';ctx.font='8px Fira Code';ctx.textAlign='center';
+        ctx.fillText('▓',x+SZ/2,y+SZ/2+3);
+      }
+      if(wiSel?.kind==='score'&&wiSel.row===i&&wiSel.col===j){
+        ctx.strokeStyle='#ff8844';ctx.lineWidth=1.5;
+        ctx.strokeRect(x+0.5,y+0.5,SZ-1,SZ-1);
+      }
+    });
+  });
 }
 
-// ── Click handling ───────────────────────────────────────────────────────────
-canvas.addEventListener('click', (e) => {
-  if (!currentLayer || currentView !== 'linear') return;
-  const l = currentLayer;
-  const W = l.W;
-  const rows = W.length, cols = W[0].length;
-  const inp = l.inputVec;
+function drawWiLN(canvas){
+  if(!trainCache){canvas.width=10;canvas.height=10;return;}
+  const l=wiLayer;
+  // Use last position's activation from cache
+  const xraw=trainCache.lnf?trainCache.lnf[trainCache.lnf.length-1]:new Array(D).fill(0);
+  const g=Array.from(l.g), b=Array.from(l.b);
+  const mu=xraw.reduce((s,v)=>s+v,0)/D;
+  const va=xraw.reduce((s,v)=>s+(v-mu)**2,0)/D;
+  const si=Math.sqrt(va+1e-5);
+  const xhat=xraw.map(v=>(v-mu)/si);
+  const out=xhat.map((v,i)=>g[i]*v+b[i]);
 
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
+  const vecs=[xraw,xhat,g,b,out];
+  const labels=['x (input)','x̂ norm','γ scale','β shift','output'];
+  const colors=['#00e5ff','#ffcc44','#bb66ff','#ff8844','#00ff88'];
+  const CW=vecs.length*(WCELL+WMATGAP)+20;
+  const CH=D*(WCELL+WGAP)+50;
+  canvas.width=CW; canvas.height=CH;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,CW,CH);
 
-  const inpX = 10, matY = 30;
-  const matX = inpX + CELL + MAT_GAP;
-  const outX = matX + cols * (CELL + 2) + MAT_GAP;
-
-  // Check input
-  if (mx >= inpX && mx <= inpX + CELL) {
-    const row = Math.floor((my - matY) / (CELL + 2));
-    if (row >= 0 && row < inp.length) {
-      selectedCell = { kind: 'input', row };
-      showCellInfo('input', `x[${row}]`, inp[row], `This value gets multiplied by column ${row} of W.\nContributes to ALL output dimensions.`);
-      drawViz();
-      return;
+  const ops=['→','×','+','='];
+  vecs.forEach((vec,vi)=>{
+    const bx=10+vi*(WCELL+WMATGAP), by=28;
+    wLabel(ctx,labels[vi],bx+WCELL/2,by-10,colors[vi]);
+    const {mn,mx}=minmax(vec);
+    vec.forEach((v,d)=>{
+      const t=(v-mn)/(mx-mn+1e-9);
+      const isSel=wiSel?.kind==='ln'&&wiSel.vecIdx===vi&&wiSel.row===d;
+      const R=Math.round(vi===0?10:vi===2?60+t*120:vi===4?10:t*80);
+      const G=Math.round(vi===1?60+t*180:vi===4?60+t*180:t*80);
+      const B=Math.round(vi===0?70+t*160:vi===3?60+t*180:t*60);
+      ctx.fillStyle=`rgba(${R},${G},${B},0.85)`;
+      ctx.fillRect(bx,by+d*(WCELL+WGAP),WCELL,WCELL);
+      if(isSel){ctx.strokeStyle='#ff8844';ctx.lineWidth=1.5;ctx.strokeRect(bx+0.5,by+d*(WCELL+WGAP)+0.5,WCELL-1,WCELL-1);}
+      ctx.fillStyle='rgba(255,255,255,0.8)';
+      ctx.font='6px Fira Code';ctx.textAlign='center';
+      ctx.fillText(v.toFixed(2),bx+WCELL/2,by+d*(WCELL+WGAP)+WCELL/2+3);
+    });
+    if(vi<ops.length){
+      ctx.fillStyle='#3a4a5a';ctx.font='14px Fira Code';ctx.textAlign='center';
+      ctx.fillText(ops[vi],bx+WCELL+WMATGAP/2,by+D*(WCELL+WGAP)/2);
     }
-  }
-
-  // Check output
-  if (mx >= outX && mx <= outX + CELL) {
-    const row = Math.floor((my - matY) / (CELL + 2));
-    const out = W.map(wr => wr.reduce((s,w,j) => s + w * inp[j], 0));
-    if (row >= 0 && row < out.length) {
-      selectedCell = { kind: 'output', row };
-      showCellInfo('output', `out[${row}]`, out[row], `Dot product of W[${row},:] with full input.\nWeighted sum of all ${cols} input values.`);
-      drawViz();
-      return;
+    if(vi===0){
+      ctx.fillStyle='#3a4a5a';ctx.font='7px Fira Code';ctx.textAlign='center';
+      ctx.fillText(`μ=${mu.toFixed(2)}`,bx+WCELL/2,by+D*(WCELL+WGAP)+14);
+      ctx.fillText(`σ=${si.toFixed(2)}`,bx+WCELL/2,by+D*(WCELL+WGAP)+24);
     }
-  }
+  });
+}
 
-  // Check weight matrix
-  if (mx >= matX && mx <= matX + cols * (CELL+2)) {
-    const c = Math.floor((mx - matX) / (CELL+2));
-    const r = Math.floor((my - matY) / (CELL+2));
-    if (r >= 0 && r < rows && c >= 0 && c < cols) {
-      selectedCell = { kind: 'weight', row: r, col: c };
-      const inp = l.inputVec;
-      const contrib = W[r][c] * inp[c];
-      showCellInfo('weight', `W[${r},${c}]`, W[r][c],
-        `Connects input[${c}] (${inp[c].toFixed(3)}) → output[${r}].\nContribution: ${W[r][c].toFixed(3)} × ${inp[c].toFixed(3)} = ${contrib.toFixed(4)}`);
-      drawViz();
-      return;
-    }
-  }
+function wLabel(ctx,text,x,y,color,size=8){
+  ctx.fillStyle=color;ctx.font=`600 ${size}px Fira Code`;ctx.textAlign='center';
+  ctx.fillText(text,x,y);
+}
 
-  selectedCell = null;
-  document.getElementById('selection-section').style.display = 'none';
-  drawViz();
+function getWiInput(layerId){
+  if(!trainCache)return new Array(D).fill(0);
+  const last=trainCache.lnf?trainCache.lnf[trainCache.lnf.length-1]:null;
+  const map={wte:new Array(D).fill(0),wq:trainCache.ln1?trainCache.ln1[0]:new Array(D).fill(0),wk:trainCache.ln1?trainCache.ln1[0]:new Array(D).fill(0),wv:trainCache.ln1?trainCache.ln1[0]:new Array(D).fill(0),wo:trainCache.r1?trainCache.r1[0]:new Array(D).fill(0),w1:trainCache.r1?trainCache.r1[0]:new Array(D).fill(0),w2:trainCache.mlph?trainCache.mlph[0]:new Array(D).fill(0)};
+  return Array.from(map[layerId]||new Array(D).fill(0));
+}
+
+// ── Click handler for weights canvas ────────────────────
+document.getElementById('wi-canvas').addEventListener('click',e=>{
+  if(!wiLayer)return;
+  const canvas=document.getElementById('wi-canvas');
+  const rect=canvas.getBoundingClientRect();
+  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+
+  if(wiLayer.isAttnMap){handleAttnClick(mx,my);return;}
+  if(wiLayer.isLN){handleLNClick(mx,my);return;}
+  handleLinearClick(mx,my);
 });
 
-function showCellInfo(kind, label, val, detail) {
-  document.getElementById('selection-section').style.display = 'block';
-  document.getElementById('sel-detail').innerHTML =
-    `<div class="info-row">cell <span>${label}</span></div>
-     <div class="cell-val">${val.toFixed(4)}</div>
-     <div style="color:var(--dim);font-size:9px;line-height:1.8;margin-top:6px;white-space:pre-line">${detail}</div>`;
+function handleLinearClick(mx,my){
+  const W=wiLayer.W, rows=W.length, cols=W[0].length;
+  const inp=getWiInput(wiLayer.id);
+  const out=W.map(row=>row.reduce((s,w,j)=>s+w*inp[j],0));
+  const baseY=WLABELH+4;
+  const inpX=8, matX=inpX+WCELL+WMATGAP, outX=matX+cols*(WCELL+WGAP)+WMATGAP;
+
+  // Input?
+  if(mx>=inpX&&mx<=inpX+WCELL){
+    const r=Math.floor((my-baseY)/(WCELL+WGAP));
+    if(r>=0&&r<inp.length){
+      wiSel={kind:'input',row:r};
+      showWiInfo({
+        title:`x[ ${r} ]`,val:inp[r],
+        formula:`x[${r}] = ${inp[r].toFixed(4)}`,
+        lines:[
+          `Connects to column ${r} of W`,
+          `Multiplies every W[r,${r}] for r=0..${rows-1}`,
+          `Contributes to ALL ${rows} output dimensions`,
+        ],
+        update:stepCount>0?`last step: ${(LR*0.001).toFixed(6)} shift`:'not yet updated'
+      });
+      renderWiCanvas();return;
+    }
+  }
+  // Output?
+  if(mx>=outX&&mx<=outX+WCELL){
+    const r=Math.floor((my-baseY)/(WCELL+WGAP));
+    if(r>=0&&r<out.length){
+      wiSel={kind:'output',row:r};
+      const top3=inp.map((v,i)=>({i,v:Math.abs(W[r][i]*v)})).sort((a,b)=>b.v-a.v).slice(0,3);
+      showWiInfo({
+        title:`out[ ${r} ]`,val:out[r],
+        formula:`out[${r}] = Σ W[${r},j]·x[j]  for j=0..${cols-1}`,
+        lines:[
+          `Dot product of W[${r},:] with full input`,
+          `Top contributors: ${top3.map(t=>`x[${t.i}]`).join(', ')}`,
+        ]
+      });
+      renderWiCanvas();return;
+    }
+  }
+  // Weight cell?
+  if(mx>=matX&&mx<=matX+cols*(WCELL+WGAP)){
+    const c=Math.floor((mx-matX)/(WCELL+WGAP));
+    const r=Math.floor((my-baseY)/(WCELL+WGAP));
+    if(r>=0&&r<rows&&c>=0&&c<cols){
+      wiSel={kind:'weight',row:r,col:c};
+      const contrib=W[r][c]*inp[c];
+      showWiInfo({
+        title:`W[ ${r}, ${c} ]`,val:W[r][c],
+        formula:`W[${r},${c}] × x[${c}] = ${W[r][c].toFixed(4)} × ${inp[c].toFixed(4)}`,
+        lines:[
+          `= ${contrib.toFixed(5)}  contribution to out[${r}]`,
+          `Share of out[${r}]: ${(Math.abs(contrib)/(Math.abs(out[r])+1e-9)*100).toFixed(1)}%`,
+          `Layer: ${wiLayer.name}`,
+        ],
+        update:stepCount>0?`updated ${stepCount} times via SGD`:'not yet updated'
+      });
+      renderWiCanvas();return;
+    }
+  }
+  wiSel=null; showWiInfo(null); renderWiCanvas();
 }
 
-// ── Tab switching ────────────────────────────────────────────────────────────
-function setView(v) {
-  currentView = v;
-  currentLayer = null;
-  selectedCell = null;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById('layer-name').textContent = '—';
-  document.getElementById('op-name').textContent = '—';
-  document.getElementById('op-desc').textContent = 'Select a layer to begin.';
-  document.getElementById('formula').style.display = 'none';
-  document.getElementById('selection-section').style.display = 'none';
-  document.getElementById('stats-section').style.display = 'none';
-  canvas.width = 10; canvas.height = 10;
-  renderLayerList();
-  document.getElementById('instruction').textContent = '← select a layer · click a cell to trace';
+function handleAttnClick(mx,my){
+  if(!trainCache)return;
+  const aw=trainCache.attnW, T=aw.length;
+  const SZ=28,GAP=2,ox=40,oy=30;
+  const c=Math.floor((mx-ox)/(SZ+GAP));
+  const r=Math.floor((my-oy)/(SZ+GAP));
+  if(r>=0&&r<T&&c>=0&&c<T){
+    wiSel={kind:'score',row:r,col:c};
+    const v=aw[r][c];
+    const qch=idToChar[trainCache.tokens[r]]||'?', kch=idToChar[trainCache.tokens[c]]||'?';
+    const masked=c>r;
+    showWiInfo({
+      title:`A[ ${r}, ${c} ]  "${qch}"→"${kch}"`,val:v,
+      formula:masked?`masked (future)  j=${c} > i=${r}`:`A[${r},${c}] = softmax(Q[${r}]·K[${c}]ᵀ / √${HEAD_D})`,
+      lines:masked?['Causal mask applied','Future tokens cannot be attended to']:
+        [`Score after softmax: ${v.toFixed(4)}`,`"${qch}" attends to "${kch}" with weight ${(v*100).toFixed(1)}%`]
+    });
+    renderWiCanvas();
+  }
 }
 
-// ── Init ─────────────────────────────────────────────────────────────────────
-buildLayers();
-renderLayerList();
+function handleLNClick(mx,my){
+  const vecs=['x (input)','x̂ norm','γ scale','β shift','output'];
+  const baseY=28;
+  const vi=Math.floor((mx-10)/(WCELL+WMATGAP));
+  const d=Math.floor((my-baseY)/(WCELL+WGAP));
+  if(vi>=0&&vi<vecs.length&&d>=0&&d<D){
+    wiSel={kind:'ln',vecIdx:vi,row:d};
+    const l=wiLayer;
+    const xraw=trainCache?.lnf?trainCache.lnf[trainCache.lnf.length-1]:new Array(D).fill(0);
+    const g=Array.from(l.g),b=Array.from(l.b);
+    const mu=xraw.reduce((s,v)=>s+v,0)/D;
+    const si=Math.sqrt(xraw.reduce((s,v)=>s+(v-mu)**2,0)/D+1e-5);
+    const xhat=xraw.map(v=>(v-mu)/si);
+    const out=xhat.map((v,i)=>g[i]*v+b[i]);
+    const vals=[xraw,xhat,g,b,out];
+    const v=vals[vi][d];
+    const isLearned=vi===2||vi===3;
+    showWiInfo({
+      title:`${vecs[vi]}[ ${d} ]`,val:v,
+      formula:vi===0?`raw activation d=${d}`:vi===1?`(x[${d}]−μ)/σ = (${xraw[d].toFixed(3)}−${mu.toFixed(3)})/σ`:vi===2?`γ[${d}] = ${g[d].toFixed(4)}  (learned scale)`:vi===3?`β[${d}] = ${b[d].toFixed(4)}  (learned shift)`:`γ[${d}]·x̂[${d}] + β[${d}]`,
+      lines:[`μ = ${mu.toFixed(4)}`,`σ = ${si.toFixed(4)}`,isLearned?'← this is a learned weight':'← computed, not stored'],
+      update:isLearned&&stepCount>0?`updated ${stepCount} times`:isLearned?'not yet updated':undefined
+    });
+    renderWiCanvas();
+  }
+}
+
+function showWiInfo(info){
+  const el=document.getElementById('wi-info');
+  if(!info||!wiLayer){
+    el.innerHTML=`<div style="color:var(--dim);font-size:8px">${wiLayer?wiLayer.desc:'← select a layer · click any cell'}</div>`;
+    if(wiLayer){
+      el.innerHTML+=`<div class="wi-formula">${wiLayer.formula}</div>`;
+    }
+    return;
+  }
+  let html=`<div class="wi-info-title">${info.title}</div>`;
+  html+=`<div class="wi-val-big">${typeof info.val==='number'?info.val.toFixed(5):info.val}</div>`;
+  html+=`<div class="wi-formula">${info.formula}</div>`;
+  if(info.lines)info.lines.forEach(l=>{html+=`<div class="wi-row" style="font-size:8px;color:var(--dim)">${l}</div>`;});
+  if(info.update)html+=`<div class="wi-update" style="margin-top:4px">${info.update}</div>`;
+  el.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════════
+// INFERENCE
+// ═══════════════════════════════════════════════════════
+function setTemp(el){temperature=el.value/10;document.getElementById('temp-val').textContent=temperature.toFixed(1);}
+function stopInfer(){inferActive=false;clearTimeout(inferTimer);}
+
+function startInfer(){
+  if(!model){alert('Build vocab and train first');return;}
+  inferActive=true;
+  const prompt=document.getElementById('infer-input').value;
+  inferPromptLen=0;
+  inferIds=[...prompt].map(c=>charToId[c]).filter(id=>id!==undefined);
+  if(!inferIds.length){alert('Prompt has unknown characters');return;}
+  inferPromptLen=inferIds.length;
+  updateGenText();
+  inferStep();
+}
+
+function inferStep(){
+  if(!inferActive)return;
+  const maxT=parseInt(document.getElementById('max-tok').value);
+  if(inferIds.length-inferPromptLen>=maxT){inferActive=false;return;}
+  const win=inferIds.slice(-CTX);
+  const cache=forward(win);
+  const logits=cache.logits[cache.logits.length-1].map(v=>v/temperature);
+  const probs=softmax(logits);
+  let cum=0,chosen=0;const r=Math.random();
+  for(let i=0;i<probs.length;i++){cum+=probs[i];if(r<cum){chosen=i;break;}}
+  inferIds.push(chosen);
+  updateGenText();
+  drawProbBars(probs,chosen);
+  drawInferCanvas(cache);
+  document.getElementById('infer-desc').textContent=`sampled "${idToChar[chosen]||'?'}"  p=${probs[chosen].toFixed(3)}  temp=${temperature.toFixed(1)}`;
+  inferTimer=setTimeout(inferStep,280);
+}
+
+function updateGenText(){
+  const el=document.getElementById('gen-text');
+  let html='';
+  inferIds.forEach((id,i)=>{
+    const ch=idToChar[id]||'?';
+    const dc=ch===' '?' ':ch==='\n'?'<br>':ch;
+    html+=i<inferPromptLen?`<span class="old">${dc}</span>`:`<span class="new">${dc}</span>`;
+  });
+  html+='<span class="cur">█</span>';
+  el.innerHTML=html;
+}
+
+function drawProbBars(probs,topId){
+  const el=document.getElementById('prob-list');
+  el.innerHTML='';
+  probs.map((p,i)=>({p,i})).sort((a,b)=>b.p-a.p).slice(0,8).forEach(({p,i})=>{
+    const row=document.createElement('div');
+    row.className='prob-row'+(i===topId?' top':'');
+    const ch=idToChar[i]||'?', dc=ch===' '?'·':ch==='\n'?'↵':ch;
+    row.innerHTML=`<div class="prob-ch">${dc}</div><div class="prob-track"><div class="prob-fill" style="width:${p*100}%"></div></div><div class="prob-pct">${(p*100).toFixed(1)}%</div>`;
+    el.appendChild(row);
+  });
+}
+
+function drawInferCanvas(cache){
+  const canvas=document.getElementById('infer-canvas');
+  const T=cache.T,CELL=16,GAP=2;
+  const W=600, H=D*(CELL+GAP)+90;
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  // Embeddings
+  const ex=16,ey=28;
+  wLabel2(ctx,'EMBED',ex+T*(CELL+GAP)/2,ey-8,'#00e5ff');
+  cache.embeds.forEach((vec,t)=>{
+    const {mn,mx}=minmax(vec);
+    vec.forEach((v,d)=>{
+      const n=(v-mn)/(mx-mn+1e-9);
+      ctx.fillStyle=`rgb(0,${Math.round(40+n*110)},${Math.round(70+n*160)})`;
+      ctx.fillRect(ex+t*(CELL+GAP),ey+d*(CELL+GAP),CELL,CELL);
+    });
+    const ch=idToChar[cache.tokens[t]]||'?',dc=ch==='\n'?'↵':ch===' '?'·':ch;
+    ctx.fillStyle='#00e5ff';ctx.font='9px Fira Code';ctx.textAlign='center';
+    ctx.fillText(dc,ex+t*(CELL+GAP)+CELL/2,ey+D*(CELL+GAP)+14);
+  });
+
+  // Attention map
+  const ax=ex+T*(CELL+GAP)+30,ay=28;
+  const T2=cache.attnW.length;
+  wLabel2(ctx,'ATTN',ax+T2*13/2,ay-8,'#ffcc44');
+  cache.attnW.forEach((row,i)=>{
+    row.forEach((v,j)=>{
+      ctx.fillStyle=j>i?'#0a0a14':`rgba(255,204,68,${v*0.9+0.04})`;
+      ctx.fillRect(ax+j*13,ay+i*13,12,12);
+    });
+  });
+
+  // Final layer vec
+  const fx=ax+T2*13+30,fy=28;
+  wLabel2(ctx,'LN_F (last)',fx+CELL/2,fy-8,'#00ff88');
+  const last=cache.lnf[cache.lnf.length-1];
+  const {mn:fmn,mx:fmx}=minmax(last);
+  last.forEach((v,d)=>{
+    const n=(v-fmn)/(fmx-fmn+1e-9);
+    ctx.fillStyle=`rgb(${Math.round(n*60)},${Math.round(60+n*180)},${Math.round(30+n*80)})`;
+    ctx.fillRect(fx,fy+d*(CELL+GAP),CELL,CELL);
+    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='6px Fira Code';ctx.textAlign='right';
+    ctx.fillText(v.toFixed(2),fx-2,fy+d*(CELL+GAP)+10);
+  });
+
+  // Top probs bar
+  const lastLogits=cache.logits[cache.logits.length-1].map(v=>v/temperature);
+  const probs=softmax(lastLogits);
+  const topN=probs.map((p,i)=>({p,i})).sort((a,b)=>b.p-a.p).slice(0,10);
+  const bx=fx+CELL+28,by=18;
+  ctx.fillStyle='#00ff8866';ctx.font='7px Fira Code';ctx.textAlign='left';
+  ctx.fillText('TOP NEXT TOKEN PROBS',bx,by);
+  topN.forEach(({p,i},idx)=>{
+    const ch=idToChar[i]||'?',dc=ch==='\n'?'↵':ch===' '?'·':ch;
+    const bw=p*110;
+    ctx.fillStyle=idx===0?'rgba(0,255,136,0.3)':'rgba(0,229,255,0.12)';
+    ctx.fillRect(bx+18,by+6+idx*16,bw,12);
+    ctx.fillStyle=idx===0?'#00ff88':'#00e5ff';
+    ctx.font='9px Fira Code';ctx.textAlign='right';
+    ctx.fillText(dc,bx+14,by+16+idx*16);
+    ctx.fillStyle='#4a6a8a';ctx.font='7px Fira Code';ctx.textAlign='left';
+    ctx.fillText((p*100).toFixed(1)+'%',bx+22+bw,by+16+idx*16);
+  });
+}
+
+function wLabel2(ctx,text,x,y,color){ctx.fillStyle=color;ctx.font='7px Fira Code';ctx.textAlign='center';ctx.fillText(text,x,y);}
+
+// ═══════════════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════════════
+function showSec(name,el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  el.classList.add('active');
+  if(name==='train'){setTimeout(()=>{drawLossChart();if(trainCache)drawTrainAnim(trainCache,'forward');},40);}
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+loadPreset();
 </script>
 </body>
 </html>
