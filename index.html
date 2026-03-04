@@ -1,0 +1,857 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Weight × Activation Visualizer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&display=swap');
+
+:root {
+  --bg: #08080e;
+  --panel: #0c0c16;
+  --border: #1a1a2e;
+  --text: #b0c4d8;
+  --dim: #3a4a5a;
+  --accent: #00d4ff;
+  --warm: #ff7a40;
+  --green: #40ff90;
+  --purple: #c080ff;
+  --yellow: #ffd060;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+header {
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: var(--panel);
+  flex-shrink: 0;
+}
+
+.title { font-size: 11px; letter-spacing: 3px; color: var(--accent); font-weight: 600; }
+.desc { font-size: 9px; color: var(--dim); letter-spacing: 1px; }
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.tab {
+  padding: 5px 14px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--dim);
+  font-family: 'IBM Plex Mono', monospace;
+  transition: all 0.15s;
+}
+.tab:hover { color: var(--text); border-color: var(--dim); }
+.tab.active { color: var(--accent); border-color: var(--accent); background: #001a22; }
+
+.workspace {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Left: layer selector */
+.layer-list {
+  width: 190px;
+  min-width: 190px;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  overflow-y: auto;
+  padding: 10px 0;
+}
+
+.layer-item {
+  padding: 10px 14px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  color: var(--dim);
+  transition: all 0.12s;
+  line-height: 1.6;
+}
+.layer-item:hover { color: var(--text); background: #111120; }
+.layer-item.active { color: var(--accent); border-left-color: var(--accent); background: #001520; }
+.layer-item .ltype { font-size: 7px; color: var(--dim); margin-top: 2px; }
+.layer-item.active .ltype { color: #3a7a9a; }
+
+/* Center: main viz */
+.viz-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.viz-header {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.viz-header strong { color: var(--text); }
+
+.legend {
+  display: flex; gap: 12px; margin-left: auto;
+}
+.leg { display: flex; align-items: center; gap: 5px; font-size: 8px; }
+.leg-dot { width: 8px; height: 8px; border-radius: 1px; }
+
+.viz-canvas-wrap {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+/* Right: info panel */
+.info-panel {
+  width: 220px;
+  min-width: 220px;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  padding: 14px;
+  overflow-y: auto;
+  font-size: 9px;
+  line-height: 2;
+}
+
+.info-section { margin-bottom: 16px; }
+.info-title { color: var(--accent); letter-spacing: 2px; font-size: 8px; margin-bottom: 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.info-row { display: flex; justify-content: space-between; color: var(--dim); }
+.info-row span { color: var(--text); }
+
+.formula {
+  background: #0a0a1a;
+  border: 1px solid var(--border);
+  padding: 8px;
+  font-size: 9px;
+  color: var(--yellow);
+  line-height: 2;
+  margin-top: 6px;
+}
+
+.selected-info {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.cell-val {
+  font-size: 18px;
+  color: var(--accent);
+  font-weight: 600;
+  margin: 4px 0;
+}
+
+/* Canvas cells */
+canvas { display: block; }
+
+.instruction {
+  font-size: 9px;
+  color: var(--dim);
+  text-align: center;
+  letter-spacing: 1px;
+  margin-top: 8px;
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="title">WEIGHT × ACTIVATION</div>
+    <div class="desc">click any cell to trace its contribution</div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="setView('linear')">LINEAR</div>
+    <div class="tab" onclick="setView('attention')">ATTENTION</div>
+    <div class="tab" onclick="setView('layernorm')">LAYERNORM</div>
+  </div>
+</header>
+
+<div class="workspace">
+  <div class="layer-list" id="layer-list"></div>
+
+  <div class="viz-area">
+    <div class="viz-header">
+      <span>LAYER: <strong id="layer-name">—</strong></span>
+      <span>OP: <strong id="op-name">—</strong></span>
+      <div class="legend">
+        <div class="leg"><div class="leg-dot" style="background:#00d4ff33;border:1px solid #00d4ff"></div>input</div>
+        <div class="leg"><div class="leg-dot" style="background:#c080ff33;border:1px solid #c080ff"></div>weight</div>
+        <div class="leg"><div class="leg-dot" style="background:#40ff9033;border:1px solid #40ff90"></div>output</div>
+        <div class="leg"><div class="leg-dot" style="background:#ff7a4033;border:1px solid #ff7a40"></div>selected</div>
+      </div>
+    </div>
+
+    <div class="viz-canvas-wrap">
+      <div>
+        <canvas id="main-canvas"></canvas>
+        <div class="instruction" id="instruction">← select a layer · click a cell to trace</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-panel">
+    <div class="info-section">
+      <div class="info-title">OPERATION</div>
+      <div id="op-desc" style="color:var(--dim);line-height:1.8;font-size:9px;">Select a layer to begin.</div>
+      <div class="formula" id="formula" style="display:none"></div>
+    </div>
+    <div class="info-section" id="selection-section" style="display:none">
+      <div class="info-title">SELECTED CELL</div>
+      <div id="sel-detail"></div>
+    </div>
+    <div class="info-section" id="stats-section" style="display:none">
+      <div class="info-title">MATRIX STATS</div>
+      <div id="mat-stats"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Tiny deterministic RNG ───────────────────────────────────────────────────
+function seededRand(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff * 2 - 1;
+  };
+}
+
+function makeMatrix(rows, cols, seed, scale=0.1) {
+  const r = seededRand(seed);
+  const m = [];
+  for (let i = 0; i < rows; i++) {
+    m.push([]);
+    for (let j = 0; j < cols; j++) m[i].push(r() * scale);
+  }
+  return m;
+}
+
+function makeVec(len, seed, scale=1) {
+  const r = seededRand(seed);
+  return Array.from({length:len}, () => r() * scale);
+}
+
+// ── Color helpers ────────────────────────────────────────────────────────────
+function valToColor(v, min, max, alpha=1) {
+  const t = (v - min) / (max - min + 1e-9);
+  const c = t > 0.5
+    ? lerpColor([0,60,80], [0,212,255], (t-0.5)*2)
+    : lerpColor([80,10,10], [0,60,80], t*2);
+  return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+}
+
+function lerpColor(a, b, t) {
+  return a.map((v,i) => Math.round(v + (b[i]-v)*t));
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let currentView = 'linear';
+let currentLayer = null;
+let selectedCell = null; // {kind:'input'|'weight'|'output', row, col}
+let layers = {};
+
+function buildLayers() {
+  layers = {
+    linear: [
+      {
+        id: 'embed', name: 'Token Embedding', type: 'Lookup (W_e)',
+        inputVec: makeVec(8, 1, 1),  // one-hot conceptually, show as index
+        W: makeMatrix(16, 8, 10, 0.3),
+        desc: 'Each input token index selects a row from the embedding matrix. No multiply — just a lookup. The selected row IS the activation.',
+        formula: 'x = W_e[token_id]',
+        isLookup: true
+      },
+      {
+        id: 'wq', name: 'Query Projection', type: 'Linear (W_Q)',
+        inputVec: makeVec(16, 2, 1),
+        W: makeMatrix(16, 16, 20, 0.15),
+        desc: 'Input activation (d_model vector) is multiplied by W_Q. Each output dimension is a weighted sum of all inputs. Creates the "query" used in attention.',
+        formula: 'Q = x · W_Q'
+      },
+      {
+        id: 'wk', name: 'Key Projection', type: 'Linear (W_K)',
+        inputVec: makeVec(16, 3, 1),
+        W: makeMatrix(16, 16, 30, 0.15),
+        desc: 'Same structure as W_Q. The key vector is compared against queries via dot product to produce attention scores.',
+        formula: 'K = x · W_K'
+      },
+      {
+        id: 'wv', name: 'Value Projection', type: 'Linear (W_V)',
+        inputVec: makeVec(16, 4, 1),
+        W: makeMatrix(16, 16, 40, 0.15),
+        desc: 'Value vectors are what attention actually retrieves. After softmax weighting the scores, values are summed to produce the attention output.',
+        formula: 'V = x · W_V'
+      },
+      {
+        id: 'wo', name: 'Output Projection', type: 'Linear (W_O)',
+        inputVec: makeVec(16, 5, 1),
+        W: makeMatrix(16, 16, 50, 0.15),
+        desc: 'After concatenating all heads, W_O projects back to d_model. This is where multi-head results are mixed together.',
+        formula: 'out = concat(heads) · W_O'
+      },
+      {
+        id: 'mlp1', name: 'MLP Layer 1', type: 'Linear (W_1)',
+        inputVec: makeVec(16, 6, 1),
+        W: makeMatrix(32, 16, 60, 0.12),
+        desc: 'First MLP layer expands from d_model → 4×d_model (hidden_dim). This expansion gives the network capacity to represent complex functions.',
+        formula: 'h = GELU(x · W_1 + b_1)'
+      },
+      {
+        id: 'mlp2', name: 'MLP Layer 2', type: 'Linear (W_2)',
+        inputVec: makeVec(32, 7, 1),
+        W: makeMatrix(16, 32, 70, 0.08),
+        desc: 'Second MLP layer compresses back from hidden_dim → d_model. Information is filtered and projected back into the residual stream.',
+        formula: 'out = h · W_2 + b_2'
+      },
+      {
+        id: 'lmhead', name: 'LM Head', type: 'Linear (W_unembed)',
+        inputVec: makeVec(16, 8, 1),
+        W: makeMatrix(24, 16, 80, 0.1),
+        desc: 'Final projection to vocabulary size. Each output logit is the "score" for that token being next. Often tied to embedding weights (transposed).',
+        formula: 'logits = x · W_e.T'
+      },
+    ],
+
+    attention: [
+      {
+        id: 'scores', name: 'Attention Scores', type: 'QKᵀ / √d_k',
+        Q: makeMatrix(6, 8, 100, 0.4),
+        K: makeMatrix(6, 8, 200, 0.4),
+        desc: 'Each query token attends to every key token. Score[i,j] = Q[i] · K[j] / √d_k. High scores mean token i finds token j relevant.',
+        formula: 'A = softmax(Q·Kᵀ / √d_k)'
+      },
+      {
+        id: 'attn_out', name: 'Weighted Values', type: 'A · V',
+        Q: makeMatrix(6, 8, 300, 0.4),
+        K: makeMatrix(6, 8, 400, 0.4),
+        desc: 'After softmax, attention weights are used to blend value vectors. Each output position is a weighted average of all value vectors.',
+        formula: 'out = softmax(A) · V'
+      }
+    ],
+
+    layernorm: [
+      {
+        id: 'ln1', name: 'LayerNorm', type: 'Normalize + Scale',
+        inputVec: makeVec(16, 9, 2),
+        gamma: makeVec(16, 90, 0.5),
+        beta: makeVec(16, 91, 0.2),
+        desc: 'LayerNorm normalizes each position independently. γ (gamma) scales each dimension, β (beta) shifts it. Only 2×d_model params — tiny but critical.',
+        formula: 'y = γ · (x - μ)/σ + β'
+      }
+    ]
+  };
+}
+
+// ── Render layer list ────────────────────────────────────────────────────────
+function renderLayerList() {
+  const list = document.getElementById('layer-list');
+  list.innerHTML = '';
+  const src = layers[currentView] || [];
+  src.forEach((l, i) => {
+    const div = document.createElement('div');
+    div.className = 'layer-item' + (currentLayer?.id === l.id ? ' active' : '');
+    div.innerHTML = `${l.name}<div class="ltype">${l.type}</div>`;
+    div.onclick = () => selectLayer(l);
+    list.appendChild(div);
+  });
+}
+
+function selectLayer(l) {
+  currentLayer = l;
+  selectedCell = null;
+  renderLayerList();
+  document.getElementById('layer-name').textContent = l.name;
+  document.getElementById('op-name').textContent = l.type;
+  document.getElementById('op-desc').textContent = l.desc;
+  const fEl = document.getElementById('formula');
+  fEl.style.display = 'block';
+  fEl.textContent = l.formula;
+  document.getElementById('selection-section').style.display = 'none';
+  document.getElementById('stats-section').style.display = 'none';
+  drawViz();
+}
+
+// ── Main draw ────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d');
+
+const CELL = 26;
+const GAP = 6;
+const LABEL_W = 90;
+const MAT_GAP = 40;
+
+function drawViz() {
+  if (!currentLayer) return;
+  const l = currentLayer;
+
+  if (currentView === 'linear') drawLinear(l);
+  else if (currentView === 'attention') drawAttention(l);
+  else if (currentView === 'layernorm') drawLayerNorm(l);
+}
+
+function matBounds(W) {
+  let min = Infinity, max = -Infinity;
+  for (const row of W) for (const v of row) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return {min, max};
+}
+
+function vecBounds(v) {
+  return {min: Math.min(...v), max: Math.max(...v)};
+}
+
+function drawLinear(l) {
+  const W = l.W;
+  const rows = W.length;
+  const cols = W[0].length;
+  const inp = l.inputVec;
+
+  // Compute output
+  const out = W.map(row => row.reduce((s, w, j) => s + w * inp[j], 0));
+
+  const inpLen = inp.length;
+  const outLen = out.length;
+
+  // Layout: [input vec] [W matrix] [output vec]
+  const inpX = 10;
+  const inpY = 30;
+  const matX = inpX + CELL + MAT_GAP;
+  const matY = inpY;
+  const outX = matX + cols * (CELL + 2) + MAT_GAP;
+  const outY = inpY;
+
+  const W_H = rows * (CELL + 2);
+  const W_W = cols * (CELL + 2);
+  const totalH = Math.max(inpLen, rows) * (CELL + 2) + 80;
+  const totalW = outX + CELL + 60;
+
+  canvas.width = totalW;
+  canvas.height = totalH;
+  ctx.clearRect(0, 0, totalW, totalH);
+
+  const wb = matBounds(W);
+  const ib = vecBounds(inp);
+  const ob = vecBounds(out);
+
+  // Selected col highlight
+  const selCol = selectedCell?.kind === 'input' ? selectedCell.row : null;
+  const selRow = selectedCell?.kind === 'output' ? selectedCell.row : null;
+
+  // ── Draw weight matrix ───────────────────────────────────────────────────
+  drawLabel(ctx, 'W', matX + W_W/2, matY - 12, '#c080ff');
+  drawLabel(ctx, `${rows}×${cols}`, matX + W_W/2, matY - 2, '#5a4a7a', 8);
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = matX + c * (CELL + 2);
+      const y = matY + r * (CELL + 2);
+      const v = W[r][c];
+
+      let alpha = 0.6;
+      let stroke = null;
+
+      if (selCol !== null && c === selCol) { alpha = 1; stroke = '#ff7a40'; }
+      if (selRow !== null && r === selRow) { alpha = 1; stroke = '#ff7a40'; }
+      if (selectedCell?.kind === 'weight' && selectedCell.row === r && selectedCell.col === c) {
+        stroke = '#ffffff'; alpha = 1;
+      }
+
+      ctx.fillStyle = valToColor(v, wb.min, wb.max, alpha);
+      ctx.fillRect(x, y, CELL, CELL);
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1); }
+
+      if (CELL > 18) {
+        ctx.fillStyle = `rgba(255,255,255,${alpha * 0.7})`;
+        ctx.font = '7px IBM Plex Mono';
+        ctx.textAlign = 'center';
+        ctx.fillText(v.toFixed(2), x + CELL/2, y + CELL/2 + 3);
+      }
+    }
+  }
+
+  // ── Draw input vector ────────────────────────────────────────────────────
+  drawLabel(ctx, 'input x', inpX + CELL/2, matY - 12, '#00d4ff');
+  drawLabel(ctx, `${inpLen}`, inpX + CELL/2, matY - 2, '#005566', 8);
+
+  for (let i = 0; i < inpLen; i++) {
+    const x = inpX;
+    const y = matY + i * (CELL + 2);
+    const v = inp[i];
+    let alpha = 0.6;
+    let stroke = null;
+    if (selectedCell?.kind === 'input' && selectedCell.row === i) { alpha = 1; stroke = '#ff7a40'; }
+    if (selRow !== null) { alpha = 1; }
+
+    ctx.fillStyle = valToColor(v, ib.min, ib.max, alpha);
+    ctx.fillRect(x, y, CELL, CELL);
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1); }
+
+    ctx.fillStyle = `rgba(255,255,255,${alpha * 0.8})`;
+    ctx.font = '7px IBM Plex Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(v.toFixed(2), x + CELL/2, y + CELL/2 + 3);
+  }
+
+  // ── Draw output vector ───────────────────────────────────────────────────
+  drawLabel(ctx, 'output', outX + CELL/2, matY - 12, '#40ff90');
+  drawLabel(ctx, `${outLen}`, outX + CELL/2, matY - 2, '#004422', 8);
+
+  for (let i = 0; i < outLen; i++) {
+    const x = outX;
+    const y = matY + i * (CELL + 2);
+    const v = out[i];
+    let alpha = 0.6;
+    let stroke = null;
+    if (selectedCell?.kind === 'output' && selectedCell.row === i) { alpha = 1; stroke = '#ff7a40'; }
+    if (selCol !== null) { alpha = 0.3; }
+
+    ctx.fillStyle = valToColor(v, ob.min, ob.max, alpha);
+    ctx.fillRect(x, y, CELL, CELL);
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1); }
+
+    ctx.fillStyle = `rgba(255,255,255,${alpha * 0.8})`;
+    ctx.font = '7px IBM Plex Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(v.toFixed(3), x + CELL/2, y + CELL/2 + 3);
+  }
+
+  // ── Connector lines ──────────────────────────────────────────────────────
+  if (selCol !== null) {
+    // Show: input[selCol] → column selCol of W → (contributes to all outputs)
+    const ix = inpX + CELL;
+    const iy = matY + selCol * (CELL + 2) + CELL/2;
+    const mx = matX + selCol * (CELL + 2);
+    ctx.strokeStyle = '#ff7a4066';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(ix, iy); ctx.lineTo(mx, iy); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Lines from each row of that column to output
+    for (let r = 0; r < rows; r++) {
+      const wx = matX + selCol * (CELL+2) + CELL;
+      const wy = matY + r * (CELL+2) + CELL/2;
+      const ox = outX;
+      const oy = matY + r * (CELL+2) + CELL/2;
+      const contrib = Math.abs(W[r][selCol] * inp[selCol]) / (Math.abs(out[r]) + 1e-9);
+      ctx.strokeStyle = `rgba(255,122,64,${Math.min(contrib * 2, 0.6)})`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(wx, wy); ctx.lineTo(ox, oy); ctx.stroke();
+    }
+
+  } else if (selRow !== null) {
+    // Output row selected: show which weights and inputs contributed
+    const ox = outX;
+    const oy = matY + selRow * (CELL+2) + CELL/2;
+    for (let c = 0; c < cols; c++) {
+      const mx = matX + c * (CELL+2) + CELL;
+      const my = matY + selRow * (CELL+2) + CELL/2;
+      const contrib = Math.abs(W[selRow][c] * inp[c]) / (Math.abs(out[selRow]) + 1e-9);
+      ctx.strokeStyle = `rgba(255,122,64,${Math.min(contrib * 3, 0.7)})`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(ox, oy); ctx.stroke();
+      // Also input to matrix
+      const ix = inpX + CELL;
+      const iy = matY + c * (CELL+2) + CELL/2;
+      ctx.strokeStyle = `rgba(255,122,64,${Math.min(contrib * 2, 0.5)})`;
+      ctx.beginPath(); ctx.moveTo(ix, iy); ctx.lineTo(matX + c * (CELL+2), my); ctx.stroke();
+    }
+  }
+
+  // ── Dot product + equals labels ──────────────────────────────────────────
+  ctx.fillStyle = '#3a4a5a';
+  ctx.font = '14px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText('×', matX - MAT_GAP/2, matY + (rows * (CELL+2))/2);
+  ctx.fillText('=', outX - MAT_GAP/2, matY + (rows * (CELL+2))/2);
+
+  // ── Update stats ─────────────────────────────────────────────────────────
+  document.getElementById('stats-section').style.display = 'block';
+  document.getElementById('mat-stats').innerHTML =
+    `<div class="info-row">shape <span>${rows}×${cols}</span></div>
+     <div class="info-row">params <span>${rows*cols}</span></div>
+     <div class="info-row">W min <span>${wb.min.toFixed(3)}</span></div>
+     <div class="info-row">W max <span>${wb.max.toFixed(3)}</span></div>
+     <div class="info-row">out min <span>${ob.min.toFixed(3)}</span></div>
+     <div class="info-row">out max <span>${ob.max.toFixed(3)}</span></div>`;
+
+  document.getElementById('instruction').textContent =
+    l.isLookup
+      ? 'click input cell = select token row · click weight row = see embedding'
+      : 'click input cell = highlight its weight column · click output cell = trace contributions';
+}
+
+function drawAttention(l) {
+  const Q = l.Q, K = l.K;
+  const T = Q.length, d = Q[0].length;
+  const scale = Math.sqrt(d);
+
+  // Compute raw scores
+  const rawScores = Q.map(qi => K.map(kj => qi.reduce((s,v,i)=>s+v*kj[i],0)/scale));
+
+  // Causal mask + softmax
+  const scores = rawScores.map((row, i) => {
+    const masked = row.map((v,j) => j > i ? -1e9 : v);
+    const maxV = Math.max(...masked.filter(v=>v>-1e8));
+    const exps = masked.map(v => v < -1e8 ? 0 : Math.exp(v - maxV));
+    const sum = exps.reduce((a,b)=>a+b,0);
+    return exps.map(v=>v/sum);
+  });
+
+  const T2 = T;
+  const matW = T2 * (CELL+2);
+  const qW = d * (CELL+2);
+
+  canvas.width = qW + MAT_GAP + matW + MAT_GAP + qW + 60;
+  canvas.height = T * (CELL+2) + 80;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const qX = 10, qY = 30;
+  const sX = qX + qW + MAT_GAP;
+  const kX = sX + matW + MAT_GAP;
+
+  const qb = matBounds(Q), kb = matBounds(K), sb = {min:0, max:1};
+
+  drawLabel(ctx, 'Q (queries)', qX + qW/2, qY-12, '#00d4ff');
+  drawMatrix(ctx, Q, qX, qY, qb, CELL);
+
+  drawLabel(ctx, 'attention scores', sX + matW/2, qY-12, '#ffd060');
+  drawLabel(ctx, 'softmax(QKᵀ/√d)', sX + matW/2, qY-2, '#5a5020', 8);
+  drawMatrix(ctx, scores, sX, qY, sb, CELL, selectedCell?.kind==='score' ? selectedCell : null);
+
+  drawLabel(ctx, 'K (keys)', kX + qW/2, qY-12, '#c080ff');
+  drawMatrix(ctx, K, kX, qY, kb, CELL);
+
+  // Causal mask overlay
+  for (let r = 0; r < T; r++) {
+    for (let c = r+1; c < T2; c++) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(sX + c*(CELL+2), qY + r*(CELL+2), CELL, CELL);
+      ctx.fillStyle = '#1a1a2e';
+      ctx.font = '8px IBM Plex Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText('▓', sX + c*(CELL+2) + CELL/2, qY + r*(CELL+2) + CELL/2 + 3);
+    }
+  }
+
+  document.getElementById('stats-section').style.display = 'block';
+  document.getElementById('mat-stats').innerHTML =
+    `<div class="info-row">seq len T <span>${T}</span></div>
+     <div class="info-row">head dim <span>${d}</span></div>
+     <div class="info-row">scale √d <span>${scale.toFixed(2)}</span></div>
+     <div class="info-row">causal mask <span>✓</span></div>`;
+
+  document.getElementById('instruction').textContent =
+    'attention score[i,j] = how much token i attends to token j · masked = future';
+}
+
+function drawLayerNorm(l) {
+  const x = l.inputVec, g = l.gamma, b = l.beta;
+  const N = x.length;
+  const mu = x.reduce((s,v)=>s+v,0)/N;
+  const variance = x.reduce((s,v)=>s+(v-mu)**2,0)/N;
+  const sigma = Math.sqrt(variance + 1e-5);
+  const xhat = x.map(v=>(v-mu)/sigma);
+  const out = xhat.map((v,i)=>g[i]*v+b[i]);
+
+  canvas.width = 5*(CELL+MAT_GAP) + 160;
+  canvas.height = N*(CELL+2) + 80;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const xb = vecBounds(x), xhb = vecBounds(xhat), ob = vecBounds(out);
+  const gb = vecBounds(g), bb = vecBounds(b);
+
+  let cx = 10;
+  const y0 = 30;
+
+  const drawVec = (vec, label, sub, color, bounds) => {
+    drawLabel(ctx, label, cx+CELL/2, y0-12, color);
+    if (sub) drawLabel(ctx, sub, cx+CELL/2, y0-2, '#333a44', 8);
+    for (let i=0; i<N; i++) {
+      const v = vec[i];
+      ctx.fillStyle = valToColor(v, bounds.min, bounds.max, 0.8);
+      ctx.fillRect(cx, y0+i*(CELL+2), CELL, CELL);
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = '7px IBM Plex Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText(v.toFixed(2), cx+CELL/2, y0+i*(CELL+2)+CELL/2+3);
+    }
+    cx += CELL + MAT_GAP;
+  };
+
+  const op = (sym) => {
+    ctx.fillStyle = '#3a4a5a';
+    ctx.font = '14px IBM Plex Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(sym, cx - MAT_GAP/2, y0 + N*(CELL+2)/2);
+  };
+
+  drawVec(x, 'input x', `μ=${mu.toFixed(2)} σ=${sigma.toFixed(2)}`, '#00d4ff', xb);
+  op('→');
+  drawVec(xhat, 'x̂ norm', '(x-μ)/σ', '#ffd060', xhb);
+  op('×');
+  drawVec(g, 'γ scale', 'learned', '#c080ff', gb);
+  op('+');
+  drawVec(b, 'β shift', 'learned', '#ff7a40', bb);
+  op('=');
+  drawVec(out, 'output', 'γ·x̂+β', '#40ff90', ob);
+
+  document.getElementById('stats-section').style.display = 'block';
+  document.getElementById('mat-stats').innerHTML =
+    `<div class="info-row">dim <span>${N}</span></div>
+     <div class="info-row">μ (mean) <span>${mu.toFixed(3)}</span></div>
+     <div class="info-row">σ (std) <span>${sigma.toFixed(3)}</span></div>
+     <div class="info-row">params <span>${N*2} (γ+β)</span></div>`;
+
+  document.getElementById('instruction').textContent =
+    'each position normalized independently · γ and β are the only learned weights';
+}
+
+function drawMatrix(ctx, M, x, y, bounds, cell, sel=null) {
+  for (let r=0; r<M.length; r++) {
+    for (let c=0; c<M[0].length; c++) {
+      const v = M[r][c];
+      ctx.fillStyle = valToColor(v, bounds.min, bounds.max, 0.75);
+      ctx.fillRect(x+c*(cell+2), y+r*(cell+2), cell, cell);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = '7px IBM Plex Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText(v.toFixed(2), x+c*(cell+2)+cell/2, y+r*(cell+2)+cell/2+3);
+    }
+  }
+}
+
+function drawLabel(ctx, text, x, y, color, size=9) {
+  ctx.fillStyle = color;
+  ctx.font = `600 ${size}px IBM Plex Mono`;
+  ctx.textAlign = 'center';
+  ctx.fillText(text, x, y);
+}
+
+// ── Click handling ───────────────────────────────────────────────────────────
+canvas.addEventListener('click', (e) => {
+  if (!currentLayer || currentView !== 'linear') return;
+  const l = currentLayer;
+  const W = l.W;
+  const rows = W.length, cols = W[0].length;
+  const inp = l.inputVec;
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  const inpX = 10, matY = 30;
+  const matX = inpX + CELL + MAT_GAP;
+  const outX = matX + cols * (CELL + 2) + MAT_GAP;
+
+  // Check input
+  if (mx >= inpX && mx <= inpX + CELL) {
+    const row = Math.floor((my - matY) / (CELL + 2));
+    if (row >= 0 && row < inp.length) {
+      selectedCell = { kind: 'input', row };
+      showCellInfo('input', `x[${row}]`, inp[row], `This value gets multiplied by column ${row} of W.\nContributes to ALL output dimensions.`);
+      drawViz();
+      return;
+    }
+  }
+
+  // Check output
+  if (mx >= outX && mx <= outX + CELL) {
+    const row = Math.floor((my - matY) / (CELL + 2));
+    const out = W.map(wr => wr.reduce((s,w,j) => s + w * inp[j], 0));
+    if (row >= 0 && row < out.length) {
+      selectedCell = { kind: 'output', row };
+      showCellInfo('output', `out[${row}]`, out[row], `Dot product of W[${row},:] with full input.\nWeighted sum of all ${cols} input values.`);
+      drawViz();
+      return;
+    }
+  }
+
+  // Check weight matrix
+  if (mx >= matX && mx <= matX + cols * (CELL+2)) {
+    const c = Math.floor((mx - matX) / (CELL+2));
+    const r = Math.floor((my - matY) / (CELL+2));
+    if (r >= 0 && r < rows && c >= 0 && c < cols) {
+      selectedCell = { kind: 'weight', row: r, col: c };
+      const inp = l.inputVec;
+      const contrib = W[r][c] * inp[c];
+      showCellInfo('weight', `W[${r},${c}]`, W[r][c],
+        `Connects input[${c}] (${inp[c].toFixed(3)}) → output[${r}].\nContribution: ${W[r][c].toFixed(3)} × ${inp[c].toFixed(3)} = ${contrib.toFixed(4)}`);
+      drawViz();
+      return;
+    }
+  }
+
+  selectedCell = null;
+  document.getElementById('selection-section').style.display = 'none';
+  drawViz();
+});
+
+function showCellInfo(kind, label, val, detail) {
+  document.getElementById('selection-section').style.display = 'block';
+  document.getElementById('sel-detail').innerHTML =
+    `<div class="info-row">cell <span>${label}</span></div>
+     <div class="cell-val">${val.toFixed(4)}</div>
+     <div style="color:var(--dim);font-size:9px;line-height:1.8;margin-top:6px;white-space:pre-line">${detail}</div>`;
+}
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function setView(v) {
+  currentView = v;
+  currentLayer = null;
+  selectedCell = null;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('layer-name').textContent = '—';
+  document.getElementById('op-name').textContent = '—';
+  document.getElementById('op-desc').textContent = 'Select a layer to begin.';
+  document.getElementById('formula').style.display = 'none';
+  document.getElementById('selection-section').style.display = 'none';
+  document.getElementById('stats-section').style.display = 'none';
+  canvas.width = 10; canvas.height = 10;
+  renderLayerList();
+  document.getElementById('instruction').textContent = '← select a layer · click a cell to trace';
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+buildLayers();
+renderLayerList();
+</script>
+</body>
+</html>
